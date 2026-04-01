@@ -1,0 +1,17 @@
+{
+  "name": "VP26",
+  "short_name": "VP26",
+  "description": "Moderne Vertretungsplan-Oberfläche für Indiware/VpMobil24",
+  "theme_color": "#0f1724",
+  "background_color": "#0f1724",
+  "display": "standalone",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

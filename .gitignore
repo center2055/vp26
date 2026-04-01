@@ -1,0 +1,15 @@
+backend/.venv/
+backend/.env.local
+backend/.env
+backend/__pycache__/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.DS_Store
+Thumbs.db

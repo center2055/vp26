@@ -1,0 +1,36 @@
+{
+  "identifier": "desktop-capability",
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "autostart:default",
+    "notification:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "http://127.0.0.1:17826/*" },
+        { "url": "http://127.0.0.1:17827/*" },
+        { "url": "http://127.0.0.1:17828/*" },
+        { "url": "http://127.0.0.1:17829/*" },
+        { "url": "http://127.0.0.1:17830/*" }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "binaries/vp26-backend",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
+  ]
+}
