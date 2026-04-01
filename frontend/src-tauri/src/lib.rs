@@ -271,11 +271,6 @@ fn build_main_window(app: &mut tauri::App) -> Result<bool, Box<dyn std::error::E
   let target = resolve_main_window_target(app.handle(), &config)?;
   let use_boot_redirect = needs_local_target_probe(&target);
 
-  #[cfg(target_os = "linux")]
-  {
-    config.decorations = false;
-  }
-
   if use_boot_redirect {
     config.url = WebviewUrl::External("about:blank".parse()?);
   }

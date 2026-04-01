@@ -2,18 +2,15 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { fetchBootstrap, fetchPlan } from './api'
 import {
   applyNativeTheme,
-  getNativePlatform,
   initializeNativeShell,
   isNativeShell,
   loadNativeAutostartState,
-  type NativePlatform,
   notifyPlanChange,
   resolveApiBase,
   syncNativeAutostart,
   syncNativeCloseToTray,
 } from './native'
 import { AuthScreen } from './components/auth-screen'
-import { LinuxWindowChrome } from './components/linux-window-chrome'
 import { WorkspaceScreen } from './components/workspace-screen'
 import type { BootstrapResponse, FetchPlanRequest, PlanResponse } from './types'
 import {
@@ -137,7 +134,6 @@ function buildNotificationCopy(plan: PlanResponse, entityId: string) {
 
 function App() {
   const nativeShell = isNativeShell()
-  const [nativePlatform, setNativePlatform] = useState<NativePlatform>('unknown')
   const [systemThemeTick, setSystemThemeTick] = useState(0)
   const [screen, setScreen] = useState<AppScreen>(initialCachedPlan ? 'workspace' : 'auth')
   const [form, setForm] = useState<FormState>(() => createInitialFormState())
@@ -207,15 +203,6 @@ function App() {
       setSettings((current) => (current.autostart_enabled === enabled ? current : { ...current, autostart_enabled: enabled }))
     })
   }, [])
-
-  useEffect(() => {
-    if (!nativeShell) {
-      setNativePlatform('unknown')
-      return
-    }
-
-    void getNativePlatform().then(setNativePlatform)
-  }, [nativeShell])
 
   useEffect(() => {
     if (!nativeShell || typeof window === 'undefined') {
@@ -648,11 +635,8 @@ function App() {
     }
   }
 
-  const showLinuxWindowChrome = nativeShell && nativePlatform === 'linux'
-
   const shellClassName = [
     'vp26-shell',
-    showLinuxWindowChrome ? 'vp26-shell--linux' : '',
     !nativeShell ? 'vp26-shell--web' : '',
   ]
     .filter(Boolean)
@@ -660,8 +644,6 @@ function App() {
 
   return (
     <div className={shellClassName}>
-      {showLinuxWindowChrome ? <LinuxWindowChrome /> : null}
-
       <div className="vp26-shell__content">
         <div className="vp26-app">
           {screen === 'auth' || !plan ? (
