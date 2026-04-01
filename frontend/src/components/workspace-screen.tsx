@@ -1,5 +1,5 @@
 ﻿import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import { Fragment } from 'react'
 
 void useEffect
@@ -985,6 +985,7 @@ function SectionHeading({
 
 function DateStrip({
   currentDate,
+  containerRef,
   freeDays,
   isRefreshing,
   lastRefreshAt,
@@ -992,6 +993,7 @@ function DateStrip({
   onDateChange,
 }: {
   currentDate: string
+  containerRef?: RefObject<HTMLDivElement | null>
   freeDays: string[]
   isRefreshing: boolean
   lastRefreshAt: string | null
@@ -1004,7 +1006,7 @@ function DateStrip({
   const nextWeek = moveCalendarWeeks(currentDate, 1)
 
   return (
-    <div className={isRefreshing ? 'workspace-datebar is-refreshing' : 'workspace-datebar'}>
+    <div ref={containerRef} className={isRefreshing ? 'workspace-datebar is-refreshing' : 'workspace-datebar'}>
       <div className="date-strip">
         <button
           type="button"
@@ -1731,6 +1733,7 @@ export function WorkspaceScreen({
   onSubmitSettings,
 }: WorkspaceScreenProps) {
   const contentRef = useRef<HTMLElement | null>(null)
+  const datebarRef = useRef<HTMLDivElement | null>(null)
   const isCompactWeekLayout = useMediaQuery('(max-width: 1320px)')
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
   const [teacherSearch, setTeacherSearch] = useState('')
@@ -1903,6 +1906,42 @@ export function WorkspaceScreen({
     }
   }, [plan.meta.scope, section, selectedTeacher])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const contentElement = contentRef.current
+    const datebarElement = datebarRef.current
+    if (!contentElement || !datebarElement) {
+      return
+    }
+
+    const syncOffset = () => {
+      contentElement.style.setProperty('--mobile-datebar-offset', `${Math.ceil(datebarElement.getBoundingClientRect().height)}px`)
+    }
+
+    syncOffset()
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', syncOffset)
+      return () => {
+        window.removeEventListener('resize', syncOffset)
+        contentElement.style.removeProperty('--mobile-datebar-offset')
+      }
+    }
+
+    const observer = new ResizeObserver(syncOffset)
+    observer.observe(datebarElement)
+    window.addEventListener('resize', syncOffset)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncOffset)
+      contentElement.style.removeProperty('--mobile-datebar-offset')
+    }
+  }, [section])
+
   const handleWeekEntitySelect = (label: string) => {
     const sameDayEntity = plan.entities.find((entity) => entity.label === label)
     const weekEntity = weekEntityPool.find((entity) => entity.label === label)
@@ -1968,6 +2007,7 @@ export function WorkspaceScreen({
         {showDateStrip ? (
           <DateStrip
             currentDate={plan.meta.requested_date}
+            containerRef={datebarRef}
             freeDays={plan.meta.free_days}
             isRefreshing={isRefreshing}
             lastRefreshAt={lastRefreshAt}
