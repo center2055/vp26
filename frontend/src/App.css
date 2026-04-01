@@ -2614,6 +2614,58 @@
 }
 
 @media (max-width: 860px) {
+  .vp26-shell--web {
+    min-height: 100dvh;
+    height: auto;
+  }
+
+  .vp26-shell--web .vp26-shell__content,
+  .vp26-shell--web .vp26-app {
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
+  }
+
+  .vp26-shell--web .workspace-screen,
+  .vp26-shell--web .workspace-frame,
+  .vp26-shell--web .workspace-body,
+  .vp26-shell--web .workspace-body--single,
+  .vp26-shell--web .workspace-content,
+  .vp26-shell--web .workspace-content--single,
+  .vp26-shell--web .content-panel--week,
+  .vp26-shell--web .content-panel--rooms,
+  .vp26-shell--web .content-panel--teachers {
+    min-height: 0;
+    height: auto;
+    overflow: visible;
+  }
+
+  .vp26-shell--web .content-panel--week > :not(.section-heading),
+  .vp26-shell--web .content-panel--rooms > :not(.section-heading),
+  .vp26-shell--web .content-panel--teachers > :not(.section-heading) {
+    overflow: visible;
+  }
+
+  .vp26-shell--web .workspace-screen {
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .vp26-shell--web .workspace-frame {
+    display: grid;
+    grid-template-rows: auto auto;
+  }
+
+  .vp26-shell--web .workspace-content--single {
+    padding-bottom: calc(5.9rem + env(safe-area-inset-bottom));
+  }
+
+  .vp26-shell--web .nav-rail {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+  }
+
   .workspace-screen {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) auto;

@@ -650,8 +650,16 @@ function App() {
 
   const showLinuxWindowChrome = nativeShell && nativePlatform === 'linux'
 
+  const shellClassName = [
+    'vp26-shell',
+    showLinuxWindowChrome ? 'vp26-shell--linux' : '',
+    !nativeShell ? 'vp26-shell--web' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className={showLinuxWindowChrome ? 'vp26-shell vp26-shell--linux' : 'vp26-shell'}>
+    <div className={shellClassName}>
       {showLinuxWindowChrome ? <LinuxWindowChrome /> : null}
 
       <div className="vp26-shell__content">
