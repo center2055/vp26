@@ -13,6 +13,8 @@
   display: grid;
   grid-template-rows: 1.8rem minmax(0, 1fr);
   background: var(--app-bg);
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .vp26-shell--linux .vp26-shell__content,
@@ -21,6 +23,8 @@
 .vp26-shell--linux .workspace-screen {
   min-height: 0;
   height: 100%;
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
 }
 
 .vp26-shell--linux .workspace-frame {
@@ -875,6 +879,8 @@
 .sub-panel {
   padding: 0.85rem;
   border-radius: 16px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar-panel {
@@ -1649,6 +1655,8 @@
 .week-chooser {
   gap: 1rem;
   padding: 1rem 1.05rem;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .week-chooser__head {
@@ -1678,6 +1686,7 @@
 .week-chooser__grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .week-chooser__grid--uniform {
@@ -1690,6 +1699,7 @@
   padding: 0.95rem 1rem;
   width: 100%;
   height: 100%;
+  min-width: 0;
   align-content: start;
   text-align: left;
 }
@@ -1703,6 +1713,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
+  min-width: 0;
 }
 
 .week-chooser-card__stats span {
@@ -2055,7 +2066,9 @@
   display: grid;
   gap: 0.9rem;
   min-height: 0;
+  min-width: 0;
   align-content: start;
+  overflow-x: hidden;
 }
 
 .content-panel--rooms {
@@ -2101,6 +2114,7 @@
   align-items: start;
   overflow: visible;
   min-height: 0;
+  min-width: 0;
 }
 
 .room-plan__list--uniform {
@@ -2112,6 +2126,7 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.68rem;
   height: 100%;
+  min-width: 0;
   padding: 0.85rem 0.9rem;
   border-radius: 14px;
   border: 1px solid var(--border-color);
@@ -2154,11 +2169,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
+  min-width: 0;
 }
 
 .room-card__head > div {
   display: grid;
   gap: 0.18rem;
+  min-width: 0;
 }
 
 .room-card__head strong {
@@ -2175,6 +2192,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
+  min-width: 0;
 }
 
 .room-plan__list--uniform .room-card__head span,

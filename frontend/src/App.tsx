@@ -218,6 +218,21 @@ function App() {
   }, [nativeShell])
 
   useEffect(() => {
+    if (!nativeShell || typeof window === 'undefined') {
+      return
+    }
+
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault()
+    }
+
+    window.addEventListener('contextmenu', handleContextMenu)
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu)
+    }
+  }, [nativeShell])
+
+  useEffect(() => {
     void syncNativeAutostart(settings.autostart_enabled)
   }, [settings.autostart_enabled])
 
