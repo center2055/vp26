@@ -3,7 +3,21 @@ import { fetch as nativeFetch } from '@tauri-apps/plugin-http'
 import type { BootstrapResponse, FetchPlanRequest, PlanResponse } from './types'
 
 function normalizeBaseUrl(apiBaseUrl: string) {
-  return (apiBaseUrl.trim() || '/api').replace(/\/$/, '')
+  const trimmed = apiBaseUrl.trim()
+  if (!trimmed) {
+    return '/api'
+  }
+
+  const normalized = trimmed.replace(/\/$/, '')
+  if (normalized === '/api' || normalized.endsWith('/api')) {
+    return normalized
+  }
+
+  if (/^https?:\/\//i.test(normalized) || normalized.startsWith('/')) {
+    return `${normalized}/api`
+  }
+
+  return normalized
 }
 
 const API_TIMEOUT_MS = 30_000
@@ -45,6 +59,43 @@ function repairMojibake(value: string) {
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
     return value
+  }
+}
+
+function extractHtmlErrorMessage(value: string) {
+  const withoutScripts = value.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  const withoutStyles = withoutScripts.replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  const withoutTags = withoutStyles.replace(/<[^>]+>/g, ' ')
+  return withoutTags.replace(/\s+/g, ' ').trim()
+}
+
+function looksLikeHtmlResponse(value: string) {
+  return /<\s*(?:!doctype|html|head|body|title|center)\b/i.test(value)
+}
+
+async function readResponseErrorMessage(response: Response, fallback: string) {
+  const rawBody = repairMojibake(await response.text())
+  if (!rawBody) {
+    return fallback
+  }
+
+  try {
+    const body = repairPayload(JSON.parse(rawBody) as { detail?: string; message?: string; error?: string })
+    return body.detail || body.message || body.error || fallback
+  } catch {
+    const isHtmlResponse =
+      response.headers.get('content-type')?.toLowerCase().includes('text/html') || looksLikeHtmlResponse(rawBody)
+
+    if (isHtmlResponse) {
+      const htmlMessage = extractHtmlErrorMessage(rawBody)
+      if (response.status === 405 || response.status === 404) {
+        return 'Die API-Basis zeigt nicht auf das VP26-Backend. Bitte die Basis-URL des Backends eintragen, nicht die normale Website.'
+      }
+
+      return htmlMessage || fallback
+    }
+
+    return rawBody
   }
 }
 
@@ -107,7 +158,9 @@ export async function fetchBootstrap(apiBaseUrl: string, options: FetchOptions =
   const response = await fetchWithTimeout(`${base}/bootstrap`, undefined, options)
 
   if (!response.ok) {
-    throw new Error(`Bootstrap konnte nicht geladen werden (${response.status}).`)
+    throw new Error(
+      await readResponseErrorMessage(response, `Bootstrap konnte nicht geladen werden (${response.status}).`),
+    )
   }
 
   return repairPayload((await response.json()) as BootstrapResponse)
@@ -132,23 +185,7 @@ export async function fetchPlan(
   )
 
   if (!response.ok) {
-    let message = `Request failed with status ${response.status}`
-    const rawBody = repairMojibake(await response.text())
-
-    if (rawBody) {
-      try {
-        const body = repairPayload(JSON.parse(rawBody) as { detail?: string })
-        if (body.detail) {
-          message = body.detail
-        } else {
-          message = rawBody
-        }
-      } catch {
-        message = rawBody
-      }
-    }
-
-    throw new Error(message)
+    throw new Error(await readResponseErrorMessage(response, `Request failed with status ${response.status}`))
   }
 
   return repairPayload((await response.json()) as PlanResponse)
