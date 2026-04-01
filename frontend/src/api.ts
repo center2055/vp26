@@ -133,16 +133,18 @@ export async function fetchPlan(
 
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`
+    const rawBody = repairMojibake(await response.text())
 
-    try {
-      const body = repairPayload((await response.json()) as { detail?: string })
-      if (body.detail) {
-        message = body.detail
-      }
-    } catch {
-      const text = repairMojibake(await response.text())
-      if (text) {
-        message = text
+    if (rawBody) {
+      try {
+        const body = repairPayload(JSON.parse(rawBody) as { detail?: string })
+        if (body.detail) {
+          message = body.detail
+        } else {
+          message = rawBody
+        }
+      } catch {
+        message = rawBody
       }
     }
 
