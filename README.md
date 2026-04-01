@@ -1,10 +1,10 @@
 # VP26
 
-VP26 ist eine moderne Vertretungsplan-Oberflaeche fuer Indiware / VpMobil24 mit drei Zielplattformen aus derselben Codebasis:
+VP26 ist eine moderne Vertretungsplan-Oberfläche für Indiware / VpMobil24 mit drei Zielplattformen aus derselben Codebasis:
 
 - Web-Frontend mit React + Vite
 - Desktop-App mit Tauri v2
-- Python / FastAPI als Datenadapter fuer VpMobil24
+- Python / FastAPI als Datenadapter für VpMobil24
 
 ## Struktur
 
@@ -54,16 +54,16 @@ Im Frontend sind diese Build-Ziele vorbereitet:
 - `npm run tauri:build:nsis`
 - `npm run tauri:build:deb`
 
-Der Python-Sidecar wird ueber `frontend/scripts/build-sidecar.mjs` auf Windows und Linux plattformfaehig erzeugt.
+Der Python-Sidecar wird über `frontend/scripts/build-sidecar.mjs` auf Windows und Linux plattformfähig erzeugt.
 
 ## GitHub Actions
 
 Die GitHub-Workflows liegen unter `.github/workflows/`:
 
 - `desktop-build.yml` baut Windows-App, Windows-Installer, Linux-App und Linux-`deb`
-- `deploy-pages.yml` baut die statische Web-Version und deployed sie auf GitHub Pages
+- `deploy-pages.yml` baut die statische Web-Version und deployt sie auf GitHub Pages
 
-Bei Tags im Format `v*` haengt der Desktop-Workflow die gebauten Artefakte direkt an einen GitHub Release.
+Bei Tags im Format `v*` hängt der Desktop-Workflow die gebauten Artefakte direkt an einen GitHub Release.
 
 ## GitHub Pages
 
@@ -76,21 +76,21 @@ Die Pages-Version ist bewusst als Web-Variante abgespeckt:
 Wenn `VITE_API_BASE_URL` beim Build gesetzt ist, nutzt die Website diesen Backend-Endpunkt direkt.
 Ohne gesetzte API-Basis startet die Web-Version trotzdem sauber und fordert im Login-Screen eine API-Basis an.
 
-Fuer GitHub Actions kann der Backend-Endpunkt als Repository-Variable gesetzt werden:
+Für GitHub Actions kann der Backend-Endpunkt als Repository-Variable gesetzt werden:
 
 - `VP26_WEB_API_BASE_URL`
 
-Falls das Backend separat gehostet wird, muss dessen CORS-Konfiguration den Pages-Origin erlauben. Standardmaessig ist `https://center2055.github.io` bereits in den Default-Origins enthalten. Fuer andere Accounts oder Domains bitte `VP26_ALLOWED_ORIGINS` im Backend anpassen.
+Falls das Backend separat gehostet wird, muss dessen CORS-Konfiguration den Pages-Origin erlauben. Standardmäßig ist `https://center2055.github.io` bereits in den Default-Origins enthalten. Für andere Accounts oder Domains bitte `VP26_ALLOWED_ORIGINS` im Backend anpassen.
 
-### Lokalen Backend-Endpunkt fuer Pages veroeffentlichen
+### Lokalen Backend-Endpunkt für Pages veröffentlichen
 
-Wenn noch kein externer Host vorhanden ist, kann das lokale FastAPI-Backend temporaer oeffentlich gemacht werden:
+Wenn noch kein externer Host vorhanden ist, kann das lokale FastAPI-Backend temporär öffentlich gemacht werden:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/publish-pages-backend.ps1
 ```
 
-Das Skript startet das Backend lokal, erstellt einen Cloudflare Quick Tunnel, setzt `VP26_WEB_API_BASE_URL` im GitHub-Repo und triggert den Pages-Deploy neu. Das ist ein pragmatischer Test- und Uebergangsweg, aber kein stabiler Produktivhost: die URL ist an den laufenden Tunnel auf diesem Rechner gebunden.
+Das Skript startet das Backend lokal, erstellt einen Cloudflare Quick Tunnel, setzt `VP26_WEB_API_BASE_URL` im GitHub-Repo und triggert den Pages-Deploy neu. Das ist ein pragmatischer Test- und Übergangsweg, aber kein stabiler Produktivhost: die URL ist an den laufenden Tunnel auf diesem Rechner gebunden.
 
 ## Ubuntu
 
