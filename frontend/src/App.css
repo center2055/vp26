@@ -2660,6 +2660,19 @@
     padding-bottom: calc(5.9rem + env(safe-area-inset-bottom));
   }
 
+  .vp26-shell--web .content-panel--week > .section-heading,
+  .vp26-shell--web .content-panel--rooms > .section-heading,
+  .vp26-shell--web .content-panel--teachers > .section-heading {
+    position: sticky;
+    top: 0;
+    z-index: 18;
+    margin: -0.1rem -0.85rem 0;
+    padding: 0.75rem 0.85rem 0.7rem;
+    background:
+      linear-gradient(180deg, rgba(16, 20, 24, 0.98) 0%, rgba(16, 20, 24, 0.94) 86%, rgba(16, 20, 24, 0.76) 100%);
+    backdrop-filter: blur(10px);
+  }
+
   .vp26-shell--web .nav-rail {
     position: sticky;
     bottom: 0;
