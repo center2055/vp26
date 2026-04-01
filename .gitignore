@@ -9,6 +9,7 @@ frontend/src-tauri/target/
 frontend/src-tauri/gen/
 frontend/src-tauri/.sidecar-build/
 frontend/src-tauri/binaries/
+.vp26-runtime/
 *.pyc
 *.pyo
 *.pyd

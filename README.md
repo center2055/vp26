@@ -82,6 +82,16 @@ Fuer GitHub Actions kann der Backend-Endpunkt als Repository-Variable gesetzt we
 
 Falls das Backend separat gehostet wird, muss dessen CORS-Konfiguration den Pages-Origin erlauben. Standardmaessig ist `https://center2055.github.io` bereits in den Default-Origins enthalten. Fuer andere Accounts oder Domains bitte `VP26_ALLOWED_ORIGINS` im Backend anpassen.
 
+### Lokalen Backend-Endpunkt fuer Pages veroeffentlichen
+
+Wenn noch kein externer Host vorhanden ist, kann das lokale FastAPI-Backend temporaer oeffentlich gemacht werden:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/publish-pages-backend.ps1
+```
+
+Das Skript startet das Backend lokal, erstellt einen Cloudflare Quick Tunnel, setzt `VP26_WEB_API_BASE_URL` im GitHub-Repo und triggert den Pages-Deploy neu. Das ist ein pragmatischer Test- und Uebergangsweg, aber kein stabiler Produktivhost: die URL ist an den laufenden Tunnel auf diesem Rechner gebunden.
+
 ## Ubuntu
 
 Eine Ubuntu-WSL-taugliche Build-Anleitung liegt in:
