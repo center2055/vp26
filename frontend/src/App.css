@@ -1736,6 +1736,16 @@
   min-width: 0;
 }
 
+.week-detail-header {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.week-detail-header .section-heading {
+  margin-bottom: 0;
+}
+
 .week-detail-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -2671,6 +2681,27 @@
     background:
       linear-gradient(180deg, rgba(16, 20, 24, 0.98) 0%, rgba(16, 20, 24, 0.94) 86%, rgba(16, 20, 24, 0.76) 100%);
     backdrop-filter: blur(10px);
+  }
+
+  .vp26-shell--web .week-detail-header {
+    position: sticky;
+    top: 0;
+    z-index: 18;
+    margin: -0.1rem -0.85rem 0;
+    padding: 0.75rem 0.85rem 0.7rem;
+    background:
+      linear-gradient(180deg, rgba(16, 20, 24, 0.98) 0%, rgba(16, 20, 24, 0.94) 86%, rgba(16, 20, 24, 0.76) 100%);
+    backdrop-filter: blur(10px);
+  }
+
+  .vp26-shell--web .week-detail-header .section-heading {
+    margin: 0;
+    padding: 0 0 0.7rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .vp26-shell--web .week-detail-header .week-detail-toolbar {
+    padding: 0;
   }
 
   .vp26-shell--web .nav-rail {

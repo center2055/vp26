@@ -2116,39 +2116,46 @@ export function WorkspaceScreen({
 
             {section === 'week' ? (
               <section className="content-panel content-panel--week">
-                <SectionHeading
-                  title={selectedEntityWeekLabel ? `Unterricht ${selectedEntityWeekLabel}` : 'Unterricht'}
-                  subtitle="Montag bis Freitag"
-                  actions={
-                    !isWeekChooserOpen && selectedEntityWeekLabel ? (
-                      <button type="button" className="button-secondary week-detail-back" onClick={() => setIsWeekChooserOpen(true)}>
-                        <ChevronLeft className="button-icon" />
-                        Klasse wechseln
-                      </button>
-                    ) : null
-                  }
-                />
-
                 {isWeekChooserOpen || !selectedEntityWeekLabel ? (
-                  <WeekChooser
-                    entities={sortedWeekEntityPool}
-                    selectedLabel={selectedEntityWeekLabel}
-                    weekSort={weekSort}
-                    onSelectLabel={handleWeekEntitySelect}
-                    onWeekSortChange={setWeekSort}
-                  />
+                  <>
+                    <SectionHeading
+                      title={selectedEntityWeekLabel ? `Unterricht ${selectedEntityWeekLabel}` : 'Unterricht'}
+                      subtitle="Montag bis Freitag"
+                    />
+
+                    <WeekChooser
+                      entities={sortedWeekEntityPool}
+                      selectedLabel={selectedEntityWeekLabel}
+                      weekSort={weekSort}
+                      onSelectLabel={handleWeekEntitySelect}
+                      onWeekSortChange={setWeekSort}
+                    />
+                  </>
                 ) : (
                   <div className="week-detail-shell">
-                    {selectedWeekStats ? (
-                      <div className="week-detail-toolbar week-detail-toolbar--compact">
-                        <div className="week-detail-toolbar__stats week-detail-toolbar__stats--start">
-                          <span className="token">{selectedWeekStats.dayCount} Tage</span>
-                          <span className="token">{selectedWeekStats.slotCount} Blöcke</span>
-                          <span className="token">{selectedWeekStats.changedCount} Änderungen</span>
-                          <span className="token">{selectedWeekStats.cancelledCount} Entfälle</span>
+                    <div className="week-detail-header">
+                      <SectionHeading
+                        title={`Unterricht ${selectedEntityWeekLabel}`}
+                        subtitle="Montag bis Freitag"
+                        actions={
+                          <button type="button" className="button-secondary week-detail-back" onClick={() => setIsWeekChooserOpen(true)}>
+                            <ChevronLeft className="button-icon" />
+                            Klasse wechseln
+                          </button>
+                        }
+                      />
+
+                      {selectedWeekStats ? (
+                        <div className="week-detail-toolbar week-detail-toolbar--compact">
+                          <div className="week-detail-toolbar__stats week-detail-toolbar__stats--start">
+                            <span className="token">{selectedWeekStats.dayCount} Tage</span>
+                            <span className="token">{selectedWeekStats.slotCount} Blöcke</span>
+                            <span className="token">{selectedWeekStats.changedCount} Änderungen</span>
+                            <span className="token">{selectedWeekStats.cancelledCount} Entfälle</span>
+                          </div>
                         </div>
-                      </div>
-                    ) : null}
+                      ) : null}
+                    </div>
 
                     <section className="sub-panel planner-main planner-main--week">
                       {weeklyDays.some((day) => day.slots.length || day.isFreeDay) ? (
