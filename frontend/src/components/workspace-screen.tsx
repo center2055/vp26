@@ -2352,8 +2352,8 @@ export function WorkspaceScreen({
                       />
                       <small className="field-note">
                         {isNativeShell
-                          ? 'Laeuft auch weiter, wenn die App nur im Systemtray verborgen ist.'
-                          : 'Aktualisiert den Plan automatisch, solange dieser Browser-Tab geoeffnet bleibt.'}
+                          ? 'Läuft auch weiter, wenn die App nur im Systemtray verborgen ist.'
+                          : 'Aktualisiert den Plan automatisch, solange dieser Browser-Tab geöffnet bleibt.'}
                       </small>
                     </div>
 
@@ -2373,8 +2373,8 @@ export function WorkspaceScreen({
 
                         <label className="toggle-row">
                           <div>
-                            <strong>Beim Schliessen in den Tray</strong>
-                            <span>Fenster schliessen blendet die App aus, statt sie zu beenden.</span>
+                            <strong>Beim Schließen in den Tray</strong>
+                            <span>Fenster schließen blendet die App aus, statt sie zu beenden.</span>
                           </div>
                           <input
                             type="checkbox"

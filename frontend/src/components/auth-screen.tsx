@@ -44,7 +44,7 @@ export function AuthScreen({
             <p className="lead-text auth-lead">
               {showConnectionFields
                 ? 'Im Web zuerst API-Basis und Zugangsdaten setzen. Tray, Autostart und andere App-Funktionen bleiben dort bewusst ausgeblendet.'
-                : 'Nur Schulnummer, Benutzername und Passwort. Darstellung, Benachrichtigungen und App-Verhalten stellst du spaeter in den Einstellungen ein.'}
+                : 'Nur Schulnummer, Benutzername und Passwort. Darstellung, Benachrichtigungen und App-Verhalten stellst du später in den Einstellungen ein.'}
             </p>
           </div>
         </div>
@@ -101,7 +101,7 @@ export function AuthScreen({
 
           <div className="auth-actions">
             <button type="submit" className="button-primary" disabled={isLoading}>
-              <span>{isLoading ? 'Lade Plan ...' : 'Plan oeffnen'}</span>
+              <span>{isLoading ? 'Lade Plan ...' : 'Plan öffnen'}</span>
               <ArrowRight className="button-icon" />
             </button>
           </div>

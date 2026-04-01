@@ -445,7 +445,7 @@ function App() {
 
         if (isWebWithoutApiBase && !plan) {
           setScreen('auth')
-          setNotice('Fuer die Website zuerst eine API-Basis eintragen und dann den Plan laden.')
+          setNotice(null)
           return
         }
 
