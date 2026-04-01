@@ -261,9 +261,14 @@ fn main_window_config(app: &tauri::AppHandle) -> Result<WindowConfig, String> {
     .ok_or_else(|| "Fensterkonfiguration fuer 'main' fehlt.".to_string())
 }
 
-fn build_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+fn build_main_window(app: &mut tauri::App) -> Result<bool, Box<dyn std::error::Error>> {
   let mut config = main_window_config(app.handle())?;
-  config.url = WebviewUrl::External("about:blank".parse()?);
+  let target = resolve_main_window_target(app.handle(), &config)?;
+  let use_boot_redirect = needs_local_target_probe(&target);
+
+  if use_boot_redirect {
+    config.url = WebviewUrl::External("about:blank".parse()?);
+  }
 
   if should_launch_hidden() {
     config.visible = false;
@@ -271,12 +276,16 @@ fn build_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Err
     config.focus = false;
   }
 
-  tauri::WebviewWindowBuilder::from_config(app, &config)?
-    .background_color(tauri::webview::Color(15, 23, 36, 255))
-    .initialization_script(BOOTSTRAP_SCRIPT)
-    .build()?;
+  let builder = tauri::WebviewWindowBuilder::from_config(app, &config)?
+    .background_color(tauri::webview::Color(15, 23, 36, 255));
 
-  Ok(())
+  if use_boot_redirect {
+    builder.initialization_script(BOOTSTRAP_SCRIPT).build()?;
+  } else {
+    builder.build()?;
+  }
+
+  Ok(use_boot_redirect)
 }
 
 fn resolve_main_window_target(
@@ -497,9 +506,12 @@ pub fn run() {
           .build(),
       )?;
 
-      build_main_window(app)?;
+      let use_boot_redirect = build_main_window(app)?;
       build_tray(app)?;
-      launch_main_window(app.handle().clone());
+
+      if use_boot_redirect {
+        launch_main_window(app.handle().clone());
+      }
 
       Ok(())
     })

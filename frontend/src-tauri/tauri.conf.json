@@ -30,11 +30,18 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "NSRS",
+    "homepage": "https://center2055.github.io/vp26/",
+    "category": "Education",
+    "shortDescription": "Moderner Vertretungsplan-Client für Indiware und VpMobil24.",
+    "longDescription": "VP26 ist eine moderne Oberfläche für Vertretungspläne aus Indiware und VpMobil24. Die App bündelt Unterricht, Raumplan, Lehrerfinder, Offline-Kopie, Benachrichtigungen und native Desktop-Funktionen in einer schnellen, übersichtlichen Oberfläche für Windows und Linux.",
+    "copyright": "© 2026 NSRS",
     "externalBin": [
       "binaries/vp26-backend"
     ],
     "linux": {
       "deb": {
+        "section": "education",
         "depends": [
           "libwebkit2gtk-4.1-0",
           "libgtk-3-0",
@@ -45,7 +52,8 @@
     "windows": {
       "nsis": {
         "installMode": "perMachine",
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "sidebarImage": "icons/installer-sidebar.bmp"
       }
     },
     "icon": [

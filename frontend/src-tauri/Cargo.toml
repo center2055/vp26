@@ -1,10 +1,11 @@
 [package]
 name = "app"
 version = "0.1.19"
-description = "VP26 native shell"
+description = "Moderner Vertretungsplan-Client fuer Indiware und VpMobil24"
 authors = ["NSRS"]
-license = ""
-repository = ""
+license = "Proprietary"
+repository = "https://github.com/center2055/vp26"
+homepage = "https://center2055.github.io/vp26/"
 edition = "2021"
 rust-version = "1.77.2"
 
