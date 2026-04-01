@@ -208,6 +208,11 @@ fn quit_app(app: tauri::AppHandle) {
   app.exit(0);
 }
 
+#[tauri::command]
+fn native_platform() -> &'static str {
+  std::env::consts::OS
+}
+
 fn should_launch_hidden() -> bool {
   std::env::args().any(|argument| argument == "--tray")
 }
@@ -265,6 +270,11 @@ fn build_main_window(app: &mut tauri::App) -> Result<bool, Box<dyn std::error::E
   let mut config = main_window_config(app.handle())?;
   let target = resolve_main_window_target(app.handle(), &config)?;
   let use_boot_redirect = needs_local_target_probe(&target);
+
+  #[cfg(target_os = "linux")]
+  {
+    config.decorations = false;
+  }
 
   if use_boot_redirect {
     config.url = WebviewUrl::External("about:blank".parse()?);
@@ -431,7 +441,7 @@ fn launch_main_window(app: tauri::AppHandle) {
 }
 
 fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-  let open_item = MenuItemBuilder::with_id("show", "VP26 oeffnen").build(app)?;
+  let open_item = MenuItemBuilder::with_id("show", "VP26 öffnen").build(app)?;
   let quit_item = MenuItemBuilder::with_id("quit", "Beenden").build(app)?;
   let menu = MenuBuilder::new(app)
     .items(&[&open_item, &quit_item])
@@ -522,6 +532,7 @@ pub fn run() {
       should_start_in_tray,
       set_close_to_tray,
       quit_app,
+      native_platform,
       hide_to_tray,
       show_main_window
     ])

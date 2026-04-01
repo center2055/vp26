@@ -10,6 +10,8 @@ type NativeShellOptions = {
   onRefresh: () => Promise<void>
 }
 
+export type NativePlatform = 'linux' | 'windows' | 'macos' | 'unknown'
+
 const DEFAULT_API_BASE = '/api'
 const SIDECAR_NAME = 'binaries/vp26-backend'
 const NATIVE_API_PORTS = [17826, 17827, 17828, 17829, 17830]
@@ -102,6 +104,23 @@ async function waitForBundledBackend(base: string, state: BackendLaunchState) {
 
 export function isNativeShell() {
   return isTauri()
+}
+
+export async function getNativePlatform(): Promise<NativePlatform> {
+  if (!isNativeShell()) {
+    return 'unknown'
+  }
+
+  try {
+    const platform = await invoke<string>('native_platform')
+    if (platform === 'linux' || platform === 'windows' || platform === 'macos') {
+      return platform
+    }
+  } catch {
+    // no-op
+  }
+
+  return 'unknown'
 }
 
 export async function resolveApiBase(apiBaseUrl: string) {

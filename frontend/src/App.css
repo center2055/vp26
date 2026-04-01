@@ -1,3 +1,121 @@
+.vp26-shell {
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+.vp26-shell__content {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.vp26-shell--linux {
+  display: grid;
+  grid-template-rows: 1.8rem minmax(0, 1fr);
+  background: var(--app-bg);
+}
+
+.vp26-shell--linux .vp26-shell__content,
+.vp26-shell--linux .vp26-app,
+.vp26-shell--linux .auth-screen,
+.vp26-shell--linux .workspace-screen {
+  min-height: 0;
+  height: 100%;
+}
+
+.vp26-shell--linux .workspace-frame {
+  height: 100%;
+}
+
+.linux-window-chrome {
+  display: grid;
+  grid-template-columns: 4.15rem minmax(0, 1fr) 4.15rem;
+  align-items: stretch;
+  gap: 0.18rem;
+  min-height: 1.8rem;
+  padding: 0 0.32rem 0 0.38rem;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
+  user-select: none;
+}
+
+.linux-window-chrome.is-blurred {
+  opacity: 0.84;
+}
+
+.linux-window-chrome__spacer {
+  width: 100%;
+}
+
+.linux-window-chrome__drag {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.linux-window-chrome__title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  opacity: 0.96;
+}
+
+.linux-window-chrome__controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.22rem;
+}
+
+.linux-window-chrome__control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.02rem;
+  height: 1.02rem;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
+}
+
+.linux-window-chrome__control svg {
+  width: 0.52rem;
+  height: 0.52rem;
+  stroke-width: 2.35;
+}
+
+.linux-window-chrome__control:hover {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.linux-window-chrome__control:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.45);
+  outline-offset: 1px;
+}
+
+.linux-window-chrome__control--close:hover {
+  background: rgba(255, 125, 125, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 125, 125, 0.16);
+  color: #ffe2e2;
+}
+
 .vp26-app {
   min-height: 100dvh;
   height: 100dvh;
@@ -1509,6 +1627,7 @@
 
 .planner-main--week {
   align-content: start;
+  min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1599,6 +1718,7 @@
 .week-detail-shell {
   display: grid;
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .week-detail-toolbar {
@@ -1731,6 +1851,8 @@
 }
 
 .week-table {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   scrollbar-gutter: stable;
 }
@@ -1891,6 +2013,42 @@
   gap: 0.35rem;
   min-height: 100%;
   text-align: center;
+}
+
+.week-compact {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.week-day-head--compact {
+  min-height: auto;
+  gap: 0.32rem;
+  align-content: start;
+}
+
+.week-day-head--compact strong {
+  font-size: 1.02rem;
+}
+
+.week-day-head--compact span {
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+
+.week-compact__free {
+  display: grid;
+  min-height: 16rem;
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px dashed var(--border-color);
+  background:
+    linear-gradient(180deg, rgba(123, 172, 255, 0.09), transparent 78%),
+    linear-gradient(180deg, var(--panel-highlight), transparent),
+    var(--panel-bg-soft);
 }
 
 .room-plan {

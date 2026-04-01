@@ -476,6 +476,43 @@ function formatDateChip(value: string) {
     .replace(',', '')
 }
 
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false
+    }
+
+    return window.matchMedia(query).matches
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const mediaQuery = window.matchMedia(query)
+    const sync = () => {
+      setMatches(mediaQuery.matches)
+    }
+
+    sync()
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', sync)
+      return () => {
+        mediaQuery.removeEventListener('change', sync)
+      }
+    }
+
+    mediaQuery.addListener(sync)
+    return () => {
+      mediaQuery.removeListener(sync)
+    }
+  }, [query])
+
+  return matches
+}
+
 function buildTeacherBoards(currentPlan: PlanResponse, cachedPlans: PlanResponse[]) {
   const sickSet = new Set(currentPlan.meta.sick_teachers.map((teacher) => teacher.trim().toUpperCase()))
   const boards = new Map<
@@ -1072,9 +1109,64 @@ function ScheduleTable({ slots }: { slots: ScheduleSlot[] }) {
   )
 }
 
-function WeekTable({ days }: { days: WeeklyDay[] }) {
+function CompactWeekDay({ day }: { day: WeeklyDay }) {
+  const additionalPlanInfo = day.plan?.meta.additional_info?.trim()
+  const headline = formatLongDate(day.date)
+  const subtitle = day.isFreeDay ? 'Freier Tag' : day.slots.length ? `${day.slots.length} Blöcke` : 'Kein Eintrag'
+
+  return (
+    <div className="week-compact">
+      <article
+        className={[
+          'week-day-head',
+          'week-day-head--compact',
+          day.isCurrent ? 'is-active' : '',
+          day.isFreeDay ? 'week-day-head--free' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <strong>{headline}</strong>
+        <span>{subtitle}</span>
+      </article>
+
+      {day.isFreeDay ? (
+        <article className="week-compact__free">
+          <div className="week-cell__free-copy">
+            <strong>Freier Tag</strong>
+            <span>Für den ausgewählten Tag gibt es keine Blöcke.</span>
+          </div>
+        </article>
+      ) : day.slots.length ? (
+        <ScheduleTable slots={day.slots} />
+      ) : (
+        <div className="empty-state">
+          <strong>Für diesen Tag liegt kein sichtbarer Plan vor.</strong>
+          <p>Wechsle oben das Datum oder öffne eine andere Klasse derselben Woche.</p>
+        </div>
+      )}
+
+      {additionalPlanInfo ? (
+        <article className="schedule-extra-info">
+          <div className="schedule-extra-info__head">
+            <BookOpenText className="context-row__icon" />
+            <strong>Zusatzinformationen</strong>
+          </div>
+          <p>{additionalPlanInfo}</p>
+        </article>
+      ) : null}
+    </div>
+  )
+}
+
+function WeekTable({ days, compact = false }: { days: WeeklyDay[]; compact?: boolean }) {
   if (!days.length) {
     return <p className="empty-copy">Keine Wochendaten vorhanden.</p>
+  }
+
+  if (compact) {
+    const currentDay = days.find((day) => day.isCurrent) ?? days[0]
+    return <CompactWeekDay day={currentDay} />
   }
 
   const rows = buildWeeklyMatrixRows(days)
@@ -1639,6 +1731,7 @@ export function WorkspaceScreen({
   onSubmitSettings,
 }: WorkspaceScreenProps) {
   const contentRef = useRef<HTMLElement | null>(null)
+  const isCompactWeekLayout = useMediaQuery('(max-width: 1320px)')
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
   const [teacherSearch, setTeacherSearch] = useState('')
   const [selectedRoomId, setSelectedRoomId] = useState('')
@@ -2059,7 +2152,7 @@ export function WorkspaceScreen({
 
                     <section className="sub-panel planner-main planner-main--week">
                       {weeklyDays.some((day) => day.slots.length || day.isFreeDay) ? (
-                        <WeekTable days={weeklyDays} />
+                        <WeekTable days={weeklyDays} compact={isCompactWeekLayout} />
                       ) : (
                         <div className="empty-state">
                           <strong>Für diese Woche liegt kein sichtbarer Plan vor.</strong>

@@ -2,15 +2,18 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { fetchBootstrap, fetchPlan } from './api'
 import {
   applyNativeTheme,
+  getNativePlatform,
   initializeNativeShell,
   isNativeShell,
   loadNativeAutostartState,
+  type NativePlatform,
   notifyPlanChange,
   resolveApiBase,
   syncNativeAutostart,
   syncNativeCloseToTray,
 } from './native'
 import { AuthScreen } from './components/auth-screen'
+import { LinuxWindowChrome } from './components/linux-window-chrome'
 import { WorkspaceScreen } from './components/workspace-screen'
 import type { BootstrapResponse, FetchPlanRequest, PlanResponse } from './types'
 import {
@@ -134,6 +137,8 @@ function buildNotificationCopy(plan: PlanResponse, entityId: string) {
 
 function App() {
   const nativeShell = isNativeShell()
+  const [nativePlatform, setNativePlatform] = useState<NativePlatform>('unknown')
+  const [systemThemeTick, setSystemThemeTick] = useState(0)
   const [screen, setScreen] = useState<AppScreen>(initialCachedPlan ? 'workspace' : 'auth')
   const [form, setForm] = useState<FormState>(() => createInitialFormState())
   const [settings, setSettings] = useState<AppSettings>(() => createInitialAppSettings())
@@ -162,7 +167,7 @@ function App() {
   const prefetchingKeysRef = useRef<Set<string>>(new Set())
   const refreshRef = useRef<() => Promise<void>>(async () => undefined)
   const loadPlanRef = useRef<(nextForm: FormState, options?: ConnectOptions) => Promise<void>>(async () => undefined)
-  const theme: Theme = useMemo(() => resolveTheme(settings.theme_mode), [settings.theme_mode])
+  const theme: Theme = useMemo(() => resolveTheme(settings.theme_mode), [settings.theme_mode, systemThemeTick])
 
   useEffect(() => {
     persistStoredState(form, settings)
@@ -175,10 +180,42 @@ function App() {
   }, [settings.theme_mode, theme])
 
   useEffect(() => {
+    if (settings.theme_mode !== 'system' || typeof window === 'undefined') {
+      return
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)')
+    const handleChange = () => {
+      setSystemThemeTick((current) => current + 1)
+    }
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange)
+      return () => {
+        mediaQuery.removeEventListener('change', handleChange)
+      }
+    }
+
+    mediaQuery.addListener(handleChange)
+    return () => {
+      mediaQuery.removeListener(handleChange)
+    }
+  }, [settings.theme_mode])
+
+  useEffect(() => {
     void loadNativeAutostartState().then((enabled) => {
       setSettings((current) => (current.autostart_enabled === enabled ? current : { ...current, autostart_enabled: enabled }))
     })
   }, [])
+
+  useEffect(() => {
+    if (!nativeShell) {
+      setNativePlatform('unknown')
+      return
+    }
+
+    void getNativePlatform().then(setNativePlatform)
+  }, [nativeShell])
 
   useEffect(() => {
     void syncNativeAutostart(settings.autostart_enabled)
@@ -596,49 +633,57 @@ function App() {
     }
   }
 
+  const showLinuxWindowChrome = nativeShell && nativePlatform === 'linux'
+
   return (
-    <div className="vp26-app">
-      {screen === 'auth' || !plan ? (
-        <AuthScreen
-          form={form}
-          isNativeShell={nativeShell}
-          isLoading={isLoading || isBootstrapping}
-          error={error}
-          notice={notice}
-          hasCachedPlan={hasCachedPlan}
-          lastRefreshAt={lastRefreshAt}
-          onFormChange={updateForm}
-          onSubmit={handlePrimarySubmit}
-        />
-      ) : (
-        <WorkspaceScreen
-          plan={plan}
-          cachedPlans={cachedPlans}
-          isNativeShell={nativeShell}
-          form={form}
-          settings={settings}
-          section={section}
-          entitySearch={entitySearch}
-          selectedEntityId={form.entity_id}
-          isLoading={isLoading}
-          isRefreshing={isRefreshing}
-          error={error}
-          notice={notice}
-          lastRefreshAt={lastRefreshAt}
-          usingCachedPlan={usingCachedPlan}
-          onSectionChange={setSection}
-          onEntitySearchChange={setEntitySearch}
-          onSelectEntity={handleSelectEntity}
-          onRefresh={handleRefresh}
-          onDateChange={handleDateChange}
-          onOpenSetup={handleOpenSetup}
-          onLogout={handleLogout}
-          onFormChange={updateForm}
-          onSettingsChange={updateSettings}
-          onNotificationEntityChange={handleNotificationEntityChange}
-          onSubmitSettings={handlePrimarySubmit}
-        />
-      )}
+    <div className={showLinuxWindowChrome ? 'vp26-shell vp26-shell--linux' : 'vp26-shell'}>
+      {showLinuxWindowChrome ? <LinuxWindowChrome /> : null}
+
+      <div className="vp26-shell__content">
+        <div className="vp26-app">
+          {screen === 'auth' || !plan ? (
+            <AuthScreen
+              form={form}
+              isNativeShell={nativeShell}
+              isLoading={isLoading || isBootstrapping}
+              error={error}
+              notice={notice}
+              hasCachedPlan={hasCachedPlan}
+              lastRefreshAt={lastRefreshAt}
+              onFormChange={updateForm}
+              onSubmit={handlePrimarySubmit}
+            />
+          ) : (
+            <WorkspaceScreen
+              plan={plan}
+              cachedPlans={cachedPlans}
+              isNativeShell={nativeShell}
+              form={form}
+              settings={settings}
+              section={section}
+              entitySearch={entitySearch}
+              selectedEntityId={form.entity_id}
+              isLoading={isLoading}
+              isRefreshing={isRefreshing}
+              error={error}
+              notice={notice}
+              lastRefreshAt={lastRefreshAt}
+              usingCachedPlan={usingCachedPlan}
+              onSectionChange={setSection}
+              onEntitySearchChange={setEntitySearch}
+              onSelectEntity={handleSelectEntity}
+              onRefresh={handleRefresh}
+              onDateChange={handleDateChange}
+              onOpenSetup={handleOpenSetup}
+              onLogout={handleLogout}
+              onFormChange={updateForm}
+              onSettingsChange={updateSettings}
+              onNotificationEntityChange={handleNotificationEntityChange}
+              onSubmitSettings={handlePrimarySubmit}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }
