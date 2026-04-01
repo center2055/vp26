@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react'
 import { ArrowRight, WifiOff } from 'lucide-react'
 import { ConnectionFields } from './connection-fields'
-import { formatDateTime, type FormState, type FormUpdater } from '../ui'
+import { CONFIGURED_WEB_API_BASE_URL, formatDateTime, type FormState, type FormUpdater } from '../ui'
 
 type AuthScreenProps = {
   form: FormState
@@ -27,6 +27,7 @@ export function AuthScreen({
   onSubmit,
 }: AuthScreenProps) {
   const showConnectionFields = !isNativeShell
+  const hasConfiguredWebApiBase = Boolean(CONFIGURED_WEB_API_BASE_URL)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -43,7 +44,9 @@ export function AuthScreen({
             <h2>Plan laden</h2>
             <p className="lead-text auth-lead">
               {showConnectionFields
-                ? 'Im Web zuerst API-Basis und Zugangsdaten setzen. Tray, Autostart und andere App-Funktionen bleiben dort bewusst ausgeblendet.'
+                ? hasConfiguredWebApiBase
+                  ? 'Die Website ist bereits mit dem VP26-Backend verbunden. Hier fehlen nur noch deine Zugangsdaten.'
+                  : 'Im Web zuerst API-Basis und Zugangsdaten setzen. Tray, Autostart und andere App-Funktionen bleiben dort bewusst ausgeblendet.'
                 : 'Nur Schulnummer, Benutzername und Passwort. Darstellung, Benachrichtigungen und App-Verhalten stellst du später in den Einstellungen ein.'}
             </p>
           </div>
@@ -51,7 +54,7 @@ export function AuthScreen({
 
         <form className="auth-form auth-form--minimal" onSubmit={handleSubmit}>
           {showConnectionFields ? (
-            <ConnectionFields form={form} onFormChange={onFormChange} />
+            <ConnectionFields form={form} onFormChange={onFormChange} showApiBaseField={!hasConfiguredWebApiBase} />
           ) : (
             <>
               <div className="field-grid">

@@ -3,25 +3,29 @@ import type { FormState, FormUpdater } from '../ui'
 type ConnectionFieldsProps = {
   form: FormState
   dense?: boolean
+  showApiBaseField?: boolean
   onFormChange: FormUpdater
 }
 
 export function ConnectionFields({
   form,
   dense = false,
+  showApiBaseField = true,
   onFormChange,
 }: ConnectionFieldsProps) {
   return (
     <div className={dense ? 'connection-fields connection-fields--dense' : 'connection-fields'}>
-      <div className="field-grid">
-        <label className="field-block">
-          <span className="field-label">API-Basis</span>
-          <input
-            value={form.api_base_url}
-            onChange={(event) => onFormChange('api_base_url', event.target.value)}
-            placeholder="/api"
-          />
-        </label>
+      <div className={showApiBaseField ? 'field-grid' : 'field-grid field-grid--single'}>
+        {showApiBaseField ? (
+          <label className="field-block">
+            <span className="field-label">API-Basis</span>
+            <input
+              value={form.api_base_url}
+              onChange={(event) => onFormChange('api_base_url', event.target.value)}
+              placeholder="/api"
+            />
+          </label>
+        ) : null}
         <label className="field-block">
           <span className="field-label">Datum</span>
           <input
@@ -80,8 +84,7 @@ export function ConnectionFields({
           placeholder="lokal gespeichert"
         />
         <small className="field-note">
-          Wird lokal gespeichert, damit Login, Offline-Kopie und Benachrichtigungen ohne erneute Eingabe
-          funktionieren.
+          Wird lokal gespeichert, damit Login, Offline-Kopie und Benachrichtigungen ohne erneute Eingabe funktionieren.
         </small>
       </label>
     </div>

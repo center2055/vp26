@@ -54,7 +54,8 @@ export type CachedPlanState = {
 
 export const STORAGE_KEY = 'vp26.preferences'
 export const PLAN_CACHE_KEY = 'vp26.plan-cache'
-export const FALLBACK_API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+export const CONFIGURED_WEB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
+export const FALLBACK_API_BASE_URL = CONFIGURED_WEB_API_BASE_URL || '/api'
 const SETTINGS_STORAGE_VERSION = 3
 
 const PLAN_CACHE_LIMIT = 45
@@ -271,9 +272,15 @@ export function todayString() {
 export function createInitialFormState(): FormState {
   const stored = typeof window === 'undefined' ? {} : readStoredState()
   const today = todayString()
+  const storedApiBaseUrl = stored.api_base_url?.trim()
+  const initialApiBaseUrl =
+    CONFIGURED_WEB_API_BASE_URL &&
+    (!storedApiBaseUrl || storedApiBaseUrl === '/api' || storedApiBaseUrl === '/api/' || storedApiBaseUrl === 'api')
+      ? CONFIGURED_WEB_API_BASE_URL
+      : storedApiBaseUrl || FALLBACK_API_BASE_URL
 
   return {
-    api_base_url: stored.api_base_url ?? FALLBACK_API_BASE_URL,
+    api_base_url: initialApiBaseUrl,
     school_id: stored.school_id ?? '',
     username: stored.username ?? '',
     password: stored.password ?? '',
