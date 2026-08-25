@@ -39,6 +39,7 @@ type WorkspaceScreenProps = {
   plan: PlanResponse
   cachedPlans: PlanResponse[]
   isNativeShell: boolean
+  backendHasCredentials: boolean
   form: FormState
   settings: AppSettings
   section: WorkspaceSection
@@ -1740,6 +1741,7 @@ export function WorkspaceScreen({
   plan,
   cachedPlans,
   isNativeShell,
+  backendHasCredentials,
   form,
   settings,
   section,
@@ -2016,10 +2018,13 @@ export function WorkspaceScreen({
           </button>
         </div>
         <div className="nav-rail__spacer" />
-        <button type="button" className="nav-button nav-button--bottom" onClick={onLogout} title="Abmelden">
-          <LogOut className="nav-button__icon" />
-          <span>Logout</span>
-        </button>
+        {/* Liegen die Zugangsdaten im Backend, gibt es nichts abzumelden. */}
+        {backendHasCredentials ? null : (
+          <button type="button" className="nav-button nav-button--bottom" onClick={onLogout} title="Abmelden">
+            <LogOut className="nav-button__icon" />
+            <span>Logout</span>
+          </button>
+        )}
       </aside>
 
       <div className={section === 'settings' ? 'workspace-frame workspace-frame--settings' : 'workspace-frame'}>
@@ -2462,7 +2467,7 @@ export function WorkspaceScreen({
                       <h3>Schule und Abruf</h3>
                     </div>
 
-                    <ConnectionFields dense form={form} onFormChange={onFormChange} />
+                    <ConnectionFields dense form={form} onFormChange={onFormChange} showCredentials={!backendHasCredentials} />
 
                     <div className="settings-actions">
                       <button type="submit" className="button-primary" disabled={isLoading}>

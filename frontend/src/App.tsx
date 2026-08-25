@@ -78,14 +78,22 @@ const initialCachedPlan = startupState.cachedPlan
 
 let hasAttemptedBootstrap = false
 
-function sanitizePayload(form: FormState): FetchPlanRequest {
+function sanitizePayload(form: FormState, useBackendCredentials = false): FetchPlanRequest {
+  // Hat das Backend eigene Zugangsdaten, gewinnen sie: sonst wuerde ein alter,
+  // im Browser gespeicherter Login den funktionierenden Serverzugang ueberschreiben.
+  const credentials = useBackendCredentials
+    ? {}
+    : {
+        school_id: form.school_id ? Number(form.school_id) : undefined,
+        username: form.username || undefined,
+        password: form.password || undefined,
+      }
+
   return {
     demo: false,
     scope: 'classes',
     date: form.date,
-    school_id: form.school_id ? Number(form.school_id) : undefined,
-    username: form.username || undefined,
-    password: form.password || undefined,
+    ...credentials,
     server_domain: form.server_domain || 'stundenplan24.de',
     port: form.port ? Number(form.port) : undefined,
   }
@@ -156,6 +164,7 @@ function buildNotificationCopy(plan: PlanResponse, entityId: string) {
 function App() {
   const nativeShell = isNativeShell()
   const [systemTheme, setSystemTheme] = useState<Theme>(() => resolveTheme('system'))
+  const [backendHasCredentials, setBackendHasCredentials] = useState(false)
   const [screen, setScreen] = useState<AppScreen>(initialCachedPlan ? 'workspace' : 'auth')
   const [form, setForm] = useState<FormState>(() => startupState.form)
   const [settings, setSettings] = useState<AppSettings>(() => createInitialAppSettings())
@@ -180,6 +189,7 @@ function App() {
     initialCachedPlan ? buildNotificationSignature(initialCachedPlan.plan, settings.notification_entity_id || form.entity_id) : null,
   )
   const planRef = useRef<PlanResponse | null>(plan)
+  const backendCredentialsRef = useRef(backendHasCredentials)
   const activeRequestIdRef = useRef(0)
   const activeRequestControllerRef = useRef<AbortController | null>(null)
   const prefetchingKeysRef = useRef<Set<string>>(new Set())
@@ -377,7 +387,7 @@ function App() {
 
       try {
         apiBase ??= await resolveApiBase(prefetchForm.api_base_url)
-        const data = await fetchPlan(apiBase, sanitizePayload(prefetchForm), {
+        const data = await fetchPlan(apiBase, sanitizePayload(prefetchForm, backendCredentialsRef.current), {
           timeoutMs: PREFETCH_TIMEOUT_MS,
         })
         writeCachedPlan(prefetchForm, data)
@@ -425,7 +435,7 @@ function App() {
         return
       }
 
-      const data = await fetchPlan(apiBase, sanitizePayload(nextForm), {
+      const data = await fetchPlan(apiBase, sanitizePayload(nextForm, backendCredentialsRef.current), {
         signal: controller.signal,
         timeoutMs: isBackground ? BACKGROUND_TIMEOUT_MS : undefined,
       })
@@ -491,6 +501,7 @@ function App() {
 
   loadPlanRef.current = loadPlan
   planRef.current = plan
+  backendCredentialsRef.current = backendHasCredentials
 
   useEffect(() => {
     if (hasAttemptedBootstrap) {
@@ -503,25 +514,26 @@ function App() {
       setIsBootstrapping(true)
       setError(null)
 
+      // Ohne eingetragene API-Basis darf ein fehlgeschlagener Bootstrap keine
+      // Fehlermeldung erzeugen - die Website soll dann einfach den Login zeigen.
+      const isWebWithoutApiBase =
+        !nativeShell && !HAS_CONFIGURED_WEB_API_BASE && startupState.form.api_base_url === FALLBACK_API_BASE_URL
+
       try {
         const initialForm = startupState.form
-        const isWebWithoutApiBase =
-          !nativeShell && !HAS_CONFIGURED_WEB_API_BASE && initialForm.api_base_url === FALLBACK_API_BASE_URL
-
-        if (isWebWithoutApiBase && !plan) {
-          setScreen('auth')
-          setNotice(null)
-          return
-        }
-
         const apiBase = await resolveApiBase(initialForm.api_base_url)
         const bootstrapData = await fetchBootstrap(apiBase)
         const nextForm = mergeBootstrapDefaults(initialForm, bootstrapData)
+
+        setBackendHasCredentials(bootstrapData.has_backend_defaults)
 
         startTransition(() => {
           setForm((current) => ({
             ...current,
             ...nextForm,
+            // Liefert das Backend die Zugangsdaten, wird der lokal gespeicherte
+            // Login nicht mehr gebraucht und verschwindet auch aus dem Storage.
+            ...(bootstrapData.has_backend_defaults ? { password: '' } : {}),
           }))
         })
 
@@ -547,7 +559,11 @@ function App() {
         // auf die beim Start geladene Offline-Kopie zurück.
         const hasActivePlanRequest = activeRequestIdRef.current > 0
 
-        if (initialCachedPlan && !planRef.current && !hasActivePlanRequest) {
+        if (isWebWithoutApiBase && !planRef.current && !hasActivePlanRequest) {
+          setScreen('auth')
+          setNotice(null)
+          setError(null)
+        } else if (initialCachedPlan && !planRef.current && !hasActivePlanRequest) {
           startTransition(() => {
             setPlan(initialCachedPlan.plan)
             setScreen('workspace')
@@ -689,6 +705,7 @@ function App() {
               hasCachedPlan={hasCachedPlan}
               lastRefreshAt={lastRefreshAt}
               canReturnToPlan={screen === 'auth' && Boolean(plan)}
+              backendHasCredentials={backendHasCredentials}
               onFormChange={updateForm}
               onSubmit={handlePrimarySubmit}
               onReturnToPlan={() => setScreen('workspace')}
@@ -717,6 +734,7 @@ function App() {
               onOpenSetup={handleOpenSetup}
               onLogout={handleLogout}
               onFormChange={updateForm}
+              backendHasCredentials={backendHasCredentials}
               onSettingsChange={updateSettings}
               onNotificationEntityChange={handleNotificationEntityChange}
               onSubmitSettings={handlePrimarySubmit}

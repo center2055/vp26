@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 
 
 def _split_csv(raw: str | None, fallback: tuple[str, ...]) -> tuple[str, ...]:
@@ -31,15 +31,32 @@ class Settings:
     default_port: int | None
 
 
+def _file_values() -> dict[str, str]:
+    backend_root = Path(__file__).resolve().parent.parent
+    merged: dict[str, str] = {}
+
+    for name in (".env", ".env.local"):
+        for key, value in dotenv_values(backend_root / name).items():
+            if value is not None:
+                merged[key] = value
+
+    return merged
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    backend_root = Path(__file__).resolve().parent.parent
-    load_dotenv(backend_root / ".env")
-    load_dotenv(backend_root / ".env.local")
+    # Bewusst ohne load_dotenv: das schreibt die Werte einmalig nach os.environ
+    # und ignoriert danach jede Aenderung an der Datei - ein geaendertes oder
+    # geloeschtes Passwort wirkte erst nach einem Neustart des Dienstes.
+    values = _file_values()
+
+    def read(key: str) -> str | None:
+        # Echte Umgebungsvariablen haben Vorrang, sonst zaehlt die Datei.
+        return os.environ.get(key) or values.get(key)
 
     return Settings(
         allowed_origins=_split_csv(
-            os.getenv("VP26_ALLOWED_ORIGINS"),
+            read("VP26_ALLOWED_ORIGINS"),
             (
                 "http://127.0.0.1:5173",
                 "http://localhost:5173",
@@ -49,9 +66,9 @@ def get_settings() -> Settings:
                 "https://center2055.github.io",
             ),
         ),
-        default_school_id=_optional_int(os.getenv("VP26_DEFAULT_SCHOOL_ID")),
-        default_username=os.getenv("VP26_DEFAULT_USERNAME") or None,
-        default_password=os.getenv("VP26_DEFAULT_PASSWORD") or None,
-        default_server_domain=os.getenv("VP26_DEFAULT_SERVER_DOMAIN", "stundenplan24.de"),
-        default_port=_optional_int(os.getenv("VP26_DEFAULT_PORT")),
+        default_school_id=_optional_int(read("VP26_DEFAULT_SCHOOL_ID")),
+        default_username=read("VP26_DEFAULT_USERNAME") or None,
+        default_password=read("VP26_DEFAULT_PASSWORD") or None,
+        default_server_domain=read("VP26_DEFAULT_SERVER_DOMAIN") or "stundenplan24.de",
+        default_port=_optional_int(read("VP26_DEFAULT_PORT")),
     )
