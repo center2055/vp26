@@ -166,17 +166,19 @@ const NETWORK_ERROR_HINTS = [
 
 function isNetworkError(error: unknown) {
   // Chrome wirft TypeError "Failed to fetch", Firefox "NetworkError...", Safari
-  // "Load failed", der Tauri-HTTP-Plugin reicht reqwest-Meldungen durch.
+  // "Load failed". Tauri reicht Fehler dagegen oft als blanken String durch -
+  // ohne diesen Zweig blieb davon nur "Bootstrap konnte nicht geladen werden".
   if (error instanceof TypeError) {
     return true
   }
 
-  if (!(error instanceof Error)) {
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
+  if (!message) {
     return false
   }
 
-  const message = error.message.toLowerCase()
-  return NETWORK_ERROR_HINTS.some((hint) => message.includes(hint))
+  const normalized = message.toLowerCase()
+  return NETWORK_ERROR_HINTS.some((hint) => normalized.includes(hint))
 }
 
 function describeUnreachableBackend(input: string) {
@@ -227,7 +229,9 @@ async function fetchWithTimeout(input: string, init?: RequestInit, options: Fetc
       throw new Error(describeUnreachableBackend(input))
     }
 
-    throw error
+    // Auch sonst nie einen String weiterreichen: der landet oben im
+    // "instanceof Error"-Zweig und verpufft zu einer nichtssagenden Meldung.
+    throw error instanceof Error ? error : new Error(typeof error === 'string' ? error : String(error))
   } finally {
     window.clearTimeout(timeoutId)
   }

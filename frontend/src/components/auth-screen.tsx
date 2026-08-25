@@ -94,7 +94,7 @@ export function AuthScreen({
                   autoComplete="current-password"
                   value={form.password}
                   onChange={(event) => onFormChange('password', event.target.value)}
-                  placeholder="lokal gespeichert"
+                  placeholder="Passwort deiner Schule"
                 />
               </label>
             </>

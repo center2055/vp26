@@ -46,14 +46,20 @@ jobs:
         working-directory: frontend
         run: npm run tauri:build:nsis
 
+      # Das Rust-Paket heisst "app", das sagt im Release aber niemandem etwas.
+      - name: Rename portable Windows files
+        shell: bash
+        run: |
+          mkdir -p portable
+          cp frontend/src-tauri/target/release/app.exe portable/vp26-windows-portable.exe
+          cp frontend/src-tauri/target/release/vp26-backend.exe portable/vp26-backend-windows.exe
+
       - name: Upload Windows app artifact
         uses: actions/upload-artifact@v4
         with:
           name: vp26-windows-app
           if-no-files-found: error
-          path: |
-            frontend/src-tauri/target/release/app.exe
-            frontend/src-tauri/target/release/vp26-backend.exe
+          path: portable/*
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
@@ -107,14 +113,18 @@ jobs:
         working-directory: frontend
         run: npm run tauri:build:deb
 
+      - name: Rename portable Linux files
+        run: |
+          mkdir -p portable
+          cp frontend/src-tauri/target/release/app portable/vp26-linux-portable
+          cp frontend/src-tauri/target/release/vp26-backend portable/vp26-backend-linux
+
       - name: Upload Linux app artifact
         uses: actions/upload-artifact@v4
         with:
           name: vp26-linux-app
           if-no-files-found: error
-          path: |
-            frontend/src-tauri/target/release/app
-            frontend/src-tauri/target/release/vp26-backend
+          path: portable/*
 
       - name: Upload Linux deb artifact
         uses: actions/upload-artifact@v4
@@ -165,6 +175,10 @@ jobs:
         working-directory: frontend
         run: npx tauri android init --ci
 
+      - name: Generate app icons
+        working-directory: frontend
+        run: npx tauri icon src-tauri/icons/icon.png
+
       # Auf Android gibt es keinen mitgelieferten Python-Dienst, deshalb muss die
       # App auf ein erreichbares Backend zeigen.
       # Release statt Debug und nur arm64: die universelle Debug-Variante wog
@@ -203,7 +217,7 @@ jobs:
           mkdir -p apk-out
 
           find frontend/src-tauri/gen/android -name '*.apk' | while read -r apk; do
-            target="apk-out/vp26-$(basename "$apk" | sed 's/-unsigned//')"
+            target="apk-out/vp26-android-arm64.apk"
             cp "$apk" "$target"
             "$build_tools/apksigner" sign --ks "$keystore" --ks-pass "pass:$store_pass"               --key-pass "pass:$store_pass" --ks-key-alias "$alias_name" "$target"
             "$build_tools/apksigner" verify --print-certs "$target" | head -3

@@ -2556,55 +2556,55 @@
 }
 
 @media (max-width: 860px) {
-  .vp26-shell--web {
+  .vp26-shell {
     min-height: 100dvh;
     height: auto;
   }
 
-  .vp26-shell--web .vp26-shell__content,
-  .vp26-shell--web .vp26-app {
+  .vp26-shell__content,
+  .vp26-app {
     min-height: 100dvh;
     height: auto;
     overflow: visible;
   }
 
-  .vp26-shell--web .workspace-screen,
-  .vp26-shell--web .workspace-frame,
-  .vp26-shell--web .workspace-body,
-  .vp26-shell--web .workspace-body--single,
-  .vp26-shell--web .workspace-content,
-  .vp26-shell--web .workspace-content--single,
-  .vp26-shell--web .content-panel--week,
-  .vp26-shell--web .content-panel--rooms,
-  .vp26-shell--web .content-panel--teachers {
+  .workspace-screen,
+  .workspace-frame,
+  .workspace-body,
+  .workspace-body--single,
+  .workspace-content,
+  .workspace-content--single,
+  .content-panel--week,
+  .content-panel--rooms,
+  .content-panel--teachers {
     min-height: 0;
     height: auto;
     overflow: visible;
   }
 
-  .vp26-shell--web .content-panel--week > :not(.section-heading),
-  .vp26-shell--web .content-panel--rooms > :not(.section-heading),
-  .vp26-shell--web .content-panel--teachers > :not(.section-heading) {
+  .content-panel--week > :not(.section-heading),
+  .content-panel--rooms > :not(.section-heading),
+  .content-panel--teachers > :not(.section-heading) {
     overflow: visible;
   }
 
-  .vp26-shell--web .workspace-screen {
+  .workspace-screen {
     min-height: 100dvh;
     overflow: visible;
   }
 
-  .vp26-shell--web .workspace-frame {
+  .workspace-frame {
     display: grid;
     grid-template-rows: auto auto;
   }
 
   /* Die untere Leiste steht als eigene Gridzeile im Fluss und verdeckt nichts
      mehr, sobald man ganz unten ist - ein volles Leistenpolster wäre doppelt. */
-  .vp26-shell--web .workspace-content--single {
+  .workspace-content--single {
     padding-bottom: 1rem;
   }
 
-  .vp26-shell--web .workspace-datebar {
+  .workspace-datebar {
     position: sticky;
     top: 0;
     z-index: 24;
@@ -2612,9 +2612,9 @@
     box-shadow: 0 1px 0 var(--border-color);
   }
 
-  .vp26-shell--web .content-panel--week > .section-heading,
-  .vp26-shell--web .content-panel--rooms > .section-heading,
-  .vp26-shell--web .content-panel--teachers > .section-heading {
+  .content-panel--week > .section-heading,
+  .content-panel--rooms > .section-heading,
+  .content-panel--teachers > .section-heading {
     position: sticky;
     top: var(--mobile-datebar-offset, 0px);
     z-index: 18;
@@ -2623,7 +2623,7 @@
     background: var(--panel-bg);
   }
 
-  .vp26-shell--web .week-detail-header {
+  .week-detail-header {
     position: sticky;
     top: var(--mobile-datebar-offset, 0px);
     z-index: 18;
@@ -2632,17 +2632,17 @@
     background: var(--panel-bg);
   }
 
-  .vp26-shell--web .week-detail-header .section-heading {
+  .week-detail-header .section-heading {
     margin: 0;
     padding: 0 0 0.7rem;
     border-bottom: 1px solid var(--border-color);
   }
 
-  .vp26-shell--web .week-detail-header .week-detail-toolbar {
+  .week-detail-header .week-detail-toolbar {
     padding: 0;
   }
 
-  .vp26-shell--web .nav-rail {
+  .nav-rail {
     position: sticky;
     bottom: 0;
     z-index: 30;
@@ -2651,8 +2651,9 @@
   .workspace-screen {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) auto;
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
+    height: auto;
+    overflow: visible;
   }
 
   .workspace-frame {
@@ -2753,7 +2754,16 @@
   }
 
   .auth-screen--minimal {
+    align-items: start;
+    min-height: 100dvh;
+    height: auto;
     padding: 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+
+  .auth-panel--full {
+    min-height: 0;
   }
 
   .workspace-sidebar {
