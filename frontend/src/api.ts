@@ -1,6 +1,42 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { fetch as nativeFetch } from '@tauri-apps/plugin-http'
-import type { BootstrapResponse, FetchPlanRequest, PlanResponse } from './types'
+import type { BootstrapResponse, FetchPlanRequest, PlanResponse, SessionRequest, SessionResponse } from './types'
+
+const SESSION_HEADER = 'X-VP26-Session'
+
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+// Im Browser reist die Anmeldung im HttpOnly-Cookie mit. Die Desktop-App hat
+// keinen dauerhaften Cookie-Speicher und legt den Token stattdessen als Datei
+// in ihrem App-Ordner ab - von dort geht er als Header mit.
+let nativeSessionToken: string | null = null
+
+export function setNativeSessionToken(token: string | null) {
+  nativeSessionToken = token
+}
+
+function withSessionHeaders(init?: RequestInit): RequestInit {
+  if (!nativeSessionToken) {
+    return { ...init, credentials: 'include' }
+  }
+
+  return {
+    ...init,
+    credentials: 'include',
+    headers: {
+      ...(init?.headers as Record<string, string> | undefined),
+      [SESSION_HEADER]: nativeSessionToken,
+    },
+  }
+}
 
 function normalizeBaseUrl(apiBaseUrl: string) {
   const trimmed = apiBaseUrl.trim()
@@ -160,17 +196,19 @@ async function fetchWithTimeout(input: string, init?: RequestInit, options: Fetc
   const timeoutId = window.setTimeout(() => controller.abort(), options.timeoutMs ?? API_TIMEOUT_MS)
   const signal = mergeAbortSignals(controller.signal, options.signal)
 
+  const request = withSessionHeaders(init)
+
   try {
     if (isTauri()) {
       return await nativeFetch(input, {
-        ...init,
+        ...request,
         signal,
         connectTimeout: options.timeoutMs ?? API_TIMEOUT_MS,
       })
     }
 
     return await fetch(input, {
-      ...init,
+      ...request,
       signal,
     })
   } catch (error) {
@@ -200,8 +238,9 @@ export async function fetchBootstrap(apiBaseUrl: string, options: FetchOptions =
   const response = await fetchWithTimeout(`${base}/bootstrap`, undefined, options)
 
   if (!response.ok) {
-    throw new Error(
+    throw new ApiError(
       await readResponseErrorMessage(response, `Bootstrap konnte nicht geladen werden (${response.status}).`),
+      response.status,
     )
   }
 
@@ -227,8 +266,47 @@ export async function fetchPlan(
   )
 
   if (!response.ok) {
-    throw new Error(await readResponseErrorMessage(response, `Request failed with status ${response.status}`))
+    throw new ApiError(
+      await readResponseErrorMessage(response, `Request failed with status ${response.status}`),
+      response.status,
+    )
   }
 
   return repairPayload((await response.json()) as PlanResponse)
+}
+
+export async function createSession(
+  apiBaseUrl: string,
+  payload: SessionRequest,
+  options: FetchOptions = {},
+): Promise<SessionResponse> {
+  const base = normalizeBaseUrl(apiBaseUrl)
+  const response = await fetchWithTimeout(
+    `${base}/session`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+    options,
+  )
+
+  if (!response.ok) {
+    throw new ApiError(
+      await readResponseErrorMessage(response, `Anmeldung fehlgeschlagen (${response.status}).`),
+      response.status,
+    )
+  }
+
+  return repairPayload((await response.json()) as SessionResponse)
+}
+
+export async function deleteSession(apiBaseUrl: string, options: FetchOptions = {}): Promise<void> {
+  const base = normalizeBaseUrl(apiBaseUrl)
+
+  try {
+    await fetchWithTimeout(`${base}/session`, { method: 'DELETE' }, options)
+  } catch {
+    // Auch ohne erreichbares Backend muss das Abmelden lokal durchgehen.
+  }
 }

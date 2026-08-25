@@ -6,6 +6,22 @@ VP26 ist eine moderne Vertretungsplan-Oberfläche für Indiware / VpMobil24 mit 
 - Desktop-App mit Tauri v2
 - Python / FastAPI als Datenadapter für VpMobil24
 
+## Anmeldung
+
+Jede Schule meldet sich mit den eigenen Zugangsdaten von VpMobil24 an. Die Oberflaeche
+schickt Schulnummer, Benutzername und Passwort einmalig an `POST /api/session`. Das
+Backend prueft sie mit einem echten Abruf und legt sie verschluesselt in die Anmeldung:
+
+- im Browser als `HttpOnly`-Cookie, das JavaScript nicht lesen kann
+- in der Desktop-App als Datei `session.token` im App-Ordner des Nutzers
+
+Danach reisen bei jedem Plan-Abruf keine Zugangsdaten mehr mit, und im Browserspeicher
+liegt kein Passwort. Das Geraet bleibt angemeldet, bis auf `Abmelden` geklickt wird.
+
+Den Schluessel dafuer legt das Backend beim ersten Start selbst an
+(`backend/.vp26-session-key`). Fuer mehrere Instanzen hinter einem Loadbalancer gehoert
+stattdessen derselbe Wert als `VP26_SESSION_SECRET` in die Konfiguration.
+
 ## Struktur
 
 ```text

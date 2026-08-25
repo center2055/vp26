@@ -249,7 +249,8 @@ export function persistStoredState(form: FormState, settings: AppSettings) {
     api_base_url: form.api_base_url,
     school_id: form.school_id,
     username: form.username,
-    password: form.password,
+    // Kein Passwort mehr im Browserspeicher: die Anmeldung haelt das Backend in
+    // einem verschluesselten HttpOnly-Cookie, die App in ihrem eigenen Ordner.
     server_domain: form.server_domain,
     port: form.port,
     scope: form.scope,
@@ -308,7 +309,7 @@ export function createInitialFormState(): FormState {
     api_base_url: initialApiBaseUrl,
     school_id: stored.school_id ?? '',
     username: stored.username ?? '',
-    password: stored.password ?? '',
+    password: '',
     server_domain: stored.server_domain ?? 'stundenplan24.de',
     port: stored.port ?? '',
     scope: stored.scope ?? 'classes',

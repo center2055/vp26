@@ -12,7 +12,6 @@ type AuthScreenProps = {
   hasCachedPlan: boolean
   lastRefreshAt: string | null
   canReturnToPlan: boolean
-  backendHasCredentials: boolean
   onFormChange: FormUpdater
   onSubmit: () => Promise<void>
   onReturnToPlan: () => void
@@ -27,14 +26,12 @@ export function AuthScreen({
   hasCachedPlan,
   lastRefreshAt,
   canReturnToPlan,
-  backendHasCredentials,
   onFormChange,
   onSubmit,
   onReturnToPlan,
 }: AuthScreenProps) {
   const showConnectionFields = !isNativeShell
   const hasConfiguredWebApiBase = Boolean(CONFIGURED_WEB_API_BASE_URL)
-  const showCredentials = !backendHasCredentials
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -50,13 +47,11 @@ export function AuthScreen({
             <p className="eyebrow">Verbindung</p>
             <h2>Plan laden</h2>
             <p className="lead-text auth-lead">
-              {backendHasCredentials
-                ? 'Die Zugangsdaten liegen im Backend. Ein Klick genügt, um den aktuellen Plan zu laden.'
-                : showConnectionFields
-                  ? hasConfiguredWebApiBase
-                    ? 'Die Website ist bereits mit dem VP26-Backend verbunden. Hier fehlen nur noch deine Zugangsdaten.'
-                    : 'Im Web zuerst API-Basis und Zugangsdaten setzen. Tray, Autostart und andere App-Funktionen bleiben dort bewusst ausgeblendet.'
-                  : 'Nur Schulnummer, Benutzername und Passwort. Darstellung, Benachrichtigungen und App-Verhalten stellst du später in den Einstellungen ein.'}
+              {showConnectionFields
+                ? hasConfiguredWebApiBase
+                  ? 'Melde dich mit den Zugangsdaten deiner Schule an. Sie bleiben auf diesem Gerät angemeldet.'
+                  : 'Im Web zuerst API-Basis und Zugangsdaten deiner Schule setzen. Tray, Autostart und andere App-Funktionen bleiben dort bewusst ausgeblendet.'
+                : 'Nur Schulnummer, Benutzername und Passwort. Darstellung, Benachrichtigungen und App-Verhalten stellst du später in den Einstellungen ein.'}
             </p>
           </div>
         </div>
@@ -66,10 +61,9 @@ export function AuthScreen({
             <ConnectionFields
               form={form}
               onFormChange={onFormChange}
-              showCredentials={showCredentials}
-              defaultOpen={(!hasConfiguredWebApiBase && showCredentials) || Boolean(error)}
+              defaultOpen={!hasConfiguredWebApiBase || Boolean(error)}
             />
-          ) : showCredentials ? (
+          ) : (
             <>
               <div className="field-grid">
                 <label className="field-block">
@@ -104,7 +98,7 @@ export function AuthScreen({
                 />
               </label>
             </>
-          ) : null}
+          )}
 
           {hasCachedPlan ? (
             <div className="auth-cache-note">
@@ -118,12 +112,6 @@ export function AuthScreen({
 
           {notice ? <p className="message-banner message-banner--info">{notice}</p> : null}
           {error ? <p className="message-banner message-banner--error">{error}</p> : null}
-          {error && backendHasCredentials ? (
-            <small className="field-note">
-              Die Zugangsdaten stammen aus der Backend-Konfiguration (VP26_DEFAULT_SCHOOL_ID, VP26_DEFAULT_USERNAME,
-              VP26_DEFAULT_PASSWORD) und lassen sich hier nicht ändern.
-            </small>
-          ) : null}
 
           <div className="auth-actions">
             <button type="submit" className="button-primary" disabled={isLoading}>

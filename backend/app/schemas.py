@@ -23,6 +23,15 @@ class FetchPlanRequest(BaseModel):
     entity_id: str | None = Field(default=None, max_length=64)
 
 
+class SessionRequest(BaseModel):
+    school_id: int = Field(ge=1)
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=256)
+    server_domain: str | None = Field(default=None, max_length=255)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    probe_date: DateValue = Field(default_factory=DateValue.today)
+
+
 class LessonChangeFlags(BaseModel):
     subject: bool
     teacher: bool | None

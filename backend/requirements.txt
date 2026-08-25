@@ -1,3 +1,4 @@
 fastapi==0.135.2
 uvicorn[standard]==0.42.0
 vpmobil==2.0.0
+cryptography==50.0.0

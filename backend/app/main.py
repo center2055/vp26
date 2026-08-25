@@ -3,14 +3,22 @@ from __future__ import annotations
 from typing import Any
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from vpmobil import ResourceNotFound, Stundenplan24Pfade, Unauthorized, Vertretungsplan
 
 from app.config import get_settings
 from app.demo_data import get_demo_plan
-from app.schemas import FetchPlanRequest, PlanResponse
+from app.schemas import FetchPlanRequest, PlanResponse, SessionRequest
 from app.serializers import serialize_empty_plan, serialize_plan
+from app.session import (
+    SESSION_COOKIE_NAME,
+    SESSION_HEADER_NAME,
+    SESSION_MAX_AGE_SECONDS,
+    SessionCredentials,
+    issue_token,
+    read_token,
+)
 
 
 settings = get_settings()
@@ -57,24 +65,45 @@ def _coalesce(value, fallback):
     return value
 
 
-def _resolved_credentials(payload: FetchPlanRequest) -> dict[str, Any]:
+def _session_from_request(request: Request) -> SessionCredentials | None:
+    # Im Browser transportiert das HttpOnly-Cookie die Anmeldung, in der
+    # Desktop-App der Header - dort liegt der Token in einer Datei im App-Ordner.
+    return read_token(request.headers.get(SESSION_HEADER_NAME)) or read_token(
+        request.cookies.get(SESSION_COOKIE_NAME)
+    )
+
+
+def _resolved_credentials(payload: FetchPlanRequest, session: SessionCredentials | None) -> dict[str, Any]:
     current_settings = _current_settings()
-    school_id = _coalesce(payload.school_id, current_settings.default_school_id)
-    username = _coalesce(payload.username, current_settings.default_username)
-    password = _coalesce(payload.password, current_settings.default_password)
+    school_id = _coalesce(payload.school_id, session.school_id if session else None)
+    username = _coalesce(payload.username, session.username if session else None)
+    password = _coalesce(payload.password, session.password if session else None)
+
+    # Server-Defaults sind ausdruecklich nur ein Fallback fuer den Eigenbetrieb und
+    # greifen nie, solange eine Anmeldung vorliegt.
+    if not all((school_id, username, password)):
+        school_id = _coalesce(school_id, current_settings.default_school_id)
+        username = _coalesce(username, current_settings.default_username)
+        password = _coalesce(password, current_settings.default_password)
 
     if not all((school_id, username, password)):
         raise HTTPException(
-            status_code=400,
-            detail="Für Live-Daten werden Schulnummer, Benutzername und Passwort benötigt.",
+            status_code=401,
+            detail="Bitte zuerst mit Schulnummer, Benutzername und Passwort anmelden.",
         )
+
+    server_domain = _coalesce(
+        payload.server_domain,
+        (session.server_domain if session else None) or current_settings.default_server_domain,
+    )
+    port = _coalesce(payload.port, (session.port if session else None) or current_settings.default_port)
 
     return {
         "school_id": int(school_id),
         "username": str(username),
         "password": str(password),
-        "server_domain": _coalesce(payload.server_domain, current_settings.default_server_domain),
-        "port": _coalesce(payload.port, current_settings.default_port),
+        "server_domain": server_domain,
+        "port": port,
     }
 
 
@@ -84,28 +113,109 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/bootstrap")
-def bootstrap() -> dict[str, object]:
+def bootstrap(request: Request) -> dict[str, object]:
     current_settings = _current_settings()
+    session = _session_from_request(request)
+
+    # Der Anmeldestand des Geraets zaehlt, nicht was auf dem Server hinterlegt ist:
+    # jede Schule und jede Person meldet sich mit den eigenen Zugangsdaten an.
     return {
+        "authenticated": session is not None,
+        "session": session.public_view() if session else None,
         "has_backend_defaults": bool(
             current_settings.default_school_id
             and current_settings.default_username
             and current_settings.default_password
         ),
-        "default_school_id": current_settings.default_school_id,
-        "default_username": current_settings.default_username,
         "default_server_domain": current_settings.default_server_domain,
         "default_port": current_settings.default_port,
         "default_scope": "classes",
     }
 
 
+def _apply_session_cookie(response: Response, request: Request, token: str) -> None:
+    # Ueber HTTPS (GitHub Pages plus Tunnel) laeuft die Seite auf einer anderen
+    # Domain als das Backend, dafuer braucht das Cookie SameSite=None und Secure.
+    # Lokal ueber http waere Secure dagegen ein stiller Totalausfall.
+    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        token,
+        max_age=SESSION_MAX_AGE_SECONDS,
+        httponly=True,
+        secure=is_https,
+        samesite="none" if is_https else "lax",
+        path="/",
+    )
+
+
+@app.post("/api/session")
+def create_session(payload: SessionRequest, request: Request, response: Response) -> dict[str, object]:
+    server_domain = payload.server_domain or _current_settings().default_server_domain
+
+    client = Vertretungsplan(
+        payload.school_id,
+        payload.username,
+        payload.password,
+        serverdomain=server_domain,
+        port=payload.port,
+        dateipfadschema=Stundenplan24Pfade.PlanKl,
+    )
+
+    # Einmal wirklich abrufen: sonst merkt man einen Tippfehler erst beim Plan.
+    try:
+        client.fetch(payload.probe_date)
+    except Unauthorized as exc:
+        raise HTTPException(status_code=401, detail=exc.message) from exc
+    except ResourceNotFound:
+        # Kein Plan fuer diesen Tag heisst nur: der Zugang stimmt, die Datei fehlt.
+        pass
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail=f"Upstream request failed: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=f"Ungültige Antwort vom VPlan-Server: {exc}") from exc
+
+    credentials = SessionCredentials(
+        school_id=payload.school_id,
+        username=payload.username,
+        password=payload.password,
+        server_domain=server_domain,
+        port=payload.port,
+    )
+    token = issue_token(credentials)
+    _apply_session_cookie(response, request, token)
+
+    return {
+        "authenticated": True,
+        "session": credentials.public_view(),
+        # Die Desktop-App legt den Token in ihren eigenen Ordner statt in ein Cookie.
+        "token": token,
+    }
+
+
+@app.get("/api/session")
+def read_session(request: Request) -> dict[str, object]:
+    session = _session_from_request(request)
+
+    if session is None:
+        raise HTTPException(status_code=401, detail="Keine gültige Anmeldung.")
+
+    return {"authenticated": True, "session": session.public_view()}
+
+
+@app.delete("/api/session")
+def delete_session(response: Response) -> dict[str, object]:
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    return {"authenticated": False}
+
+
 @app.post("/api/plans/fetch", response_model=PlanResponse)
-def fetch_plan(payload: FetchPlanRequest) -> PlanResponse:
+def fetch_plan(payload: FetchPlanRequest, request: Request) -> PlanResponse:
     if payload.demo:
         return get_demo_plan(payload)
 
-    credentials = _resolved_credentials(payload)
+    credentials = _resolved_credentials(payload, _session_from_request(request))
     client = Vertretungsplan(
         credentials["school_id"],
         credentials["username"],

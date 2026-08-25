@@ -267,6 +267,43 @@ export async function initializeNativeShell(options: NativeShellOptions) {
   }
 }
 
+export async function loadNativeSessionToken(): Promise<string | null> {
+  if (!isNativeShell()) {
+    return null
+  }
+
+  try {
+    return (await invoke<string | null>('load_session_token')) ?? null
+  } catch (error) {
+    console.warn('VP26 konnte den gespeicherten Anmeldetoken nicht lesen.', error)
+    return null
+  }
+}
+
+export async function saveNativeSessionToken(token: string) {
+  if (!isNativeShell()) {
+    return
+  }
+
+  try {
+    await invoke('save_session_token', { token })
+  } catch (error) {
+    console.warn('VP26 konnte den Anmeldetoken nicht speichern.', error)
+  }
+}
+
+export async function clearNativeSessionToken() {
+  if (!isNativeShell()) {
+    return
+  }
+
+  try {
+    await invoke('clear_session_token')
+  } catch (error) {
+    console.warn('VP26 konnte den Anmeldetoken nicht entfernen.', error)
+  }
+}
+
 export async function quitNativeApp() {
   if (!isNativeShell()) {
     return

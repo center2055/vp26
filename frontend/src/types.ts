@@ -4,13 +4,32 @@ export type LessonStatus = 'scheduled' | 'changed' | 'cancelled'
 
 export interface FetchPlanRequest {
   demo: boolean
-  school_id?: number
-  username?: string
-  password?: string
   server_domain?: string
   port?: number
   scope: PlanScope
   date: string
+}
+
+export interface SessionRequest {
+  school_id: number
+  username: string
+  password: string
+  server_domain?: string
+  port?: number
+  probe_date?: string
+}
+
+export interface SessionInfo {
+  school_id: number
+  username: string
+  server_domain: string
+  port: number | null
+}
+
+export interface SessionResponse {
+  authenticated: boolean
+  session: SessionInfo | null
+  token?: string
 }
 
 export interface LessonChangeFlags {
@@ -100,9 +119,9 @@ export interface PlanResponse {
 }
 
 export interface BootstrapResponse {
+  authenticated: boolean
+  session: SessionInfo | null
   has_backend_defaults: boolean
-  default_school_id: number | null
-  default_username: string | null
   default_server_domain: string
   default_port: number | null
   default_scope: PlanScope

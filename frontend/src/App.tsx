@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { fetchBootstrap, fetchPlan } from './api'
+import { ApiError, createSession, deleteSession, fetchBootstrap, fetchPlan, setNativeSessionToken } from './api'
 import {
   applyNativeTheme,
+  clearNativeSessionToken,
   initializeNativeShell,
   isNativeShell,
   loadNativeAutostartState,
+  loadNativeSessionToken,
   notifyPlanChange,
   resolveApiBase,
+  saveNativeSessionToken,
   syncNativeAutostart,
   syncNativeCloseToTray,
 } from './native'
 import { AuthScreen } from './components/auth-screen'
 import { WorkspaceScreen } from './components/workspace-screen'
-import type { BootstrapResponse, FetchPlanRequest, PlanResponse } from './types'
+import type { FetchPlanRequest, PlanResponse, SessionInfo } from './types'
 import {
   buildDateStrip,
   buildPlanCacheKey,
@@ -78,34 +81,26 @@ const initialCachedPlan = startupState.cachedPlan
 
 let hasAttemptedBootstrap = false
 
-function sanitizePayload(form: FormState, useBackendCredentials = false): FetchPlanRequest {
-  // Hat das Backend eigene Zugangsdaten, gewinnen sie: sonst wuerde ein alter,
-  // im Browser gespeicherter Login den funktionierenden Serverzugang ueberschreiben.
-  const credentials = useBackendCredentials
-    ? {}
-    : {
-        school_id: form.school_id ? Number(form.school_id) : undefined,
-        username: form.username || undefined,
-        password: form.password || undefined,
-      }
-
+function sanitizePayload(form: FormState): FetchPlanRequest {
+  // Zugangsdaten reisen nicht mehr im Body mit: sie stecken in der Session, die
+  // das Backend als verschluesseltes Cookie beziehungsweise Token haelt.
   return {
     demo: false,
     scope: 'classes',
     date: form.date,
-    ...credentials,
     server_domain: form.server_domain || 'stundenplan24.de',
     port: form.port ? Number(form.port) : undefined,
   }
 }
 
-function mergeBootstrapDefaults(form: FormState, bootstrap: BootstrapResponse): FormState {
+function mergeSessionIntoForm(form: FormState, session: SessionInfo): FormState {
   return {
     ...form,
-    school_id: bootstrap.default_school_id ? String(bootstrap.default_school_id) : form.school_id,
-    username: bootstrap.default_username ?? form.username,
-    server_domain: bootstrap.default_server_domain || form.server_domain,
-    port: bootstrap.default_port ? String(bootstrap.default_port) : form.port,
+    school_id: String(session.school_id),
+    username: session.username,
+    password: '',
+    server_domain: session.server_domain || form.server_domain,
+    port: session.port ? String(session.port) : form.port,
     scope: 'classes',
   }
 }
@@ -164,7 +159,7 @@ function buildNotificationCopy(plan: PlanResponse, entityId: string) {
 function App() {
   const nativeShell = isNativeShell()
   const [systemTheme, setSystemTheme] = useState<Theme>(() => resolveTheme('system'))
-  const [backendHasCredentials, setBackendHasCredentials] = useState(false)
+  const [session, setSession] = useState<SessionInfo | null>(null)
   const [screen, setScreen] = useState<AppScreen>(initialCachedPlan ? 'workspace' : 'auth')
   const [form, setForm] = useState<FormState>(() => startupState.form)
   const [settings, setSettings] = useState<AppSettings>(() => createInitialAppSettings())
@@ -189,7 +184,6 @@ function App() {
     initialCachedPlan ? buildNotificationSignature(initialCachedPlan.plan, settings.notification_entity_id || form.entity_id) : null,
   )
   const planRef = useRef<PlanResponse | null>(plan)
-  const backendCredentialsRef = useRef(backendHasCredentials)
   const activeRequestIdRef = useRef(0)
   const activeRequestControllerRef = useRef<AbortController | null>(null)
   const prefetchingKeysRef = useRef<Set<string>>(new Set())
@@ -387,7 +381,7 @@ function App() {
 
       try {
         apiBase ??= await resolveApiBase(prefetchForm.api_base_url)
-        const data = await fetchPlan(apiBase, sanitizePayload(prefetchForm, backendCredentialsRef.current), {
+        const data = await fetchPlan(apiBase, sanitizePayload(prefetchForm), {
           timeoutMs: PREFETCH_TIMEOUT_MS,
         })
         writeCachedPlan(prefetchForm, data)
@@ -435,7 +429,7 @@ function App() {
         return
       }
 
-      const data = await fetchPlan(apiBase, sanitizePayload(nextForm, backendCredentialsRef.current), {
+      const data = await fetchPlan(apiBase, sanitizePayload(nextForm), {
         signal: controller.signal,
         timeoutMs: isBackground ? BACKGROUND_TIMEOUT_MS : undefined,
       })
@@ -466,6 +460,18 @@ function App() {
       }
 
       const message = caught instanceof Error ? caught.message : 'Verbindung konnte nicht aufgebaut werden.'
+
+      // Abgelaufene oder ungueltige Anmeldung: zurueck zum Login, sonst laeuft der
+      // Nutzer in eine Fehlermeldung, gegen die er nichts tun kann.
+      if (caught instanceof ApiError && caught.status === 401) {
+        setSession(null)
+        setNativeSessionToken(null)
+        void clearNativeSessionToken()
+        setScreen('auth')
+        setError(message)
+        return
+      }
+
       const latestIdentityCache = readCachedPlanForForm(nextForm, false)
       const latestCache = readLatestCachedPlan()
       const fallbackCache = isBackground ? exactCached : exactCached ?? latestIdentityCache ?? latestCache
@@ -501,7 +507,6 @@ function App() {
 
   loadPlanRef.current = loadPlan
   planRef.current = plan
-  backendCredentialsRef.current = backendHasCredentials
 
   useEffect(() => {
     if (hasAttemptedBootstrap) {
@@ -522,26 +527,27 @@ function App() {
       try {
         const initialForm = startupState.form
         const apiBase = await resolveApiBase(initialForm.api_base_url)
-        const bootstrapData = await fetchBootstrap(apiBase)
-        const nextForm = mergeBootstrapDefaults(initialForm, bootstrapData)
 
-        setBackendHasCredentials(bootstrapData.has_backend_defaults)
+        // In der Desktop-App liegt der Anmeldetoken als Datei im App-Ordner und
+        // muss vor dem ersten Aufruf geladen sein, damit er mitgeschickt wird.
+        setNativeSessionToken(await loadNativeSessionToken())
+
+        const bootstrapData = await fetchBootstrap(apiBase)
+        const activeSession = bootstrapData.authenticated ? bootstrapData.session : null
+        const nextForm = activeSession
+          ? mergeSessionIntoForm(initialForm, activeSession)
+          : { ...initialForm, server_domain: initialForm.server_domain || bootstrapData.default_server_domain }
+
+        setSession(activeSession)
 
         startTransition(() => {
           setForm((current) => ({
             ...current,
             ...nextForm,
-            // Liefert das Backend die Zugangsdaten, wird der lokal gespeicherte
-            // Login nicht mehr gebraucht und verschwindet auch aus dem Storage.
-            ...(bootstrapData.has_backend_defaults ? { password: '' } : {}),
           }))
         })
 
-        const canAutoConnect = Boolean(
-          (nextForm.school_id && nextForm.username && nextForm.password) || bootstrapData.has_backend_defaults,
-        )
-
-        if (canAutoConnect) {
+        if (activeSession) {
           await loadPlanRef.current(nextForm, {
             preserveView: Boolean(plan),
             bootstrap: true,
@@ -549,7 +555,7 @@ function App() {
           })
         } else if (!plan) {
           setScreen('auth')
-          setNotice('Zugangsdaten ergänzen und Plan laden.')
+          setNotice(null)
         }
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Bootstrap konnte nicht geladen werden.'
@@ -608,7 +614,54 @@ function App() {
   }, [form, plan, screen, settings.refresh_interval_minutes])
 
   async function handlePrimarySubmit() {
+    // Ohne gueltige Anmeldung ist der erste Schritt immer der Login: erst danach
+    // kennt das Backend die Zugangsdaten dieses Geraets.
+    if (!session) {
+      await handleSignIn()
+      return
+    }
+
     await loadPlan(form)
+  }
+
+  async function handleSignIn() {
+    if (!form.school_id.trim() || !form.username.trim() || !form.password) {
+      setError('Schulnummer, Benutzername und Passwort werden benötigt.')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    setNotice(null)
+
+    try {
+      const apiBase = await resolveApiBase(form.api_base_url)
+      const result = await createSession(apiBase, {
+        school_id: Number(form.school_id),
+        username: form.username.trim(),
+        password: form.password,
+        server_domain: form.server_domain || undefined,
+        port: form.port ? Number(form.port) : undefined,
+        probe_date: form.date,
+      })
+
+      if (result.token) {
+        // Desktop: Token in den App-Ordner, damit die Anmeldung Neustarts ueberlebt.
+        setNativeSessionToken(result.token)
+        await saveNativeSessionToken(result.token)
+      }
+
+      const nextForm = result.session ? mergeSessionIntoForm(form, result.session) : { ...form, password: '' }
+
+      setSession(result.session)
+      setForm(nextForm)
+      setIsLoading(false)
+
+      await loadPlan(nextForm)
+    } catch (caught) {
+      setIsLoading(false)
+      setError(caught instanceof Error ? caught.message : 'Anmeldung fehlgeschlagen.')
+    }
   }
 
   async function handleRefresh() {
@@ -637,6 +690,14 @@ function App() {
   }
 
   function handleLogout() {
+    void (async () => {
+      const apiBase = await resolveApiBase(form.api_base_url).catch(() => form.api_base_url)
+      await deleteSession(apiBase)
+      setNativeSessionToken(null)
+      await clearNativeSessionToken()
+    })()
+
+    setSession(null)
     clearStoredSession(settings)
     bumpCacheRevision()
 
@@ -705,7 +766,6 @@ function App() {
               hasCachedPlan={hasCachedPlan}
               lastRefreshAt={lastRefreshAt}
               canReturnToPlan={screen === 'auth' && Boolean(plan)}
-              backendHasCredentials={backendHasCredentials}
               onFormChange={updateForm}
               onSubmit={handlePrimarySubmit}
               onReturnToPlan={() => setScreen('workspace')}
@@ -734,7 +794,6 @@ function App() {
               onOpenSetup={handleOpenSetup}
               onLogout={handleLogout}
               onFormChange={updateForm}
-              backendHasCredentials={backendHasCredentials}
               onSettingsChange={updateSettings}
               onNotificationEntityChange={handleNotificationEntityChange}
               onSubmitSettings={handlePrimarySubmit}

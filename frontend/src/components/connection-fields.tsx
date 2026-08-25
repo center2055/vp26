@@ -4,7 +4,6 @@ type ConnectionFieldsProps = {
   form: FormState
   dense?: boolean
   defaultOpen?: boolean
-  showCredentials?: boolean
   onFormChange: FormUpdater
 }
 
@@ -12,7 +11,6 @@ export function ConnectionFields({
   form,
   dense = false,
   defaultOpen = true,
-  showCredentials = true,
   onFormChange,
 }: ConnectionFieldsProps) {
   const hasCustomConnection =
@@ -20,47 +18,41 @@ export function ConnectionFields({
 
   return (
     <div className={dense ? 'connection-fields connection-fields--dense' : 'connection-fields'}>
-      {/* Bringt das Backend eigene Zugangsdaten mit, muss hier niemand etwas
-          eintippen - die Felder sind dann nur noch Fallback. */}
-      {showCredentials ? (
-        <>
-          <div className="field-grid">
-            <label className="field-block">
-              <span className="field-label">Schulnummer</span>
-              <input
-                inputMode="numeric"
-                autoComplete="username"
-                value={form.school_id}
-                onChange={(event) => onFormChange('school_id', event.target.value)}
-                placeholder="10001329"
-              />
-            </label>
-            <label className="field-block">
-              <span className="field-label">Benutzername</span>
-              <input
-                autoComplete="username"
-                value={form.username}
-                onChange={(event) => onFormChange('username', event.target.value)}
-                placeholder="schueler"
-              />
-            </label>
-          </div>
+      <div className="field-grid">
+        <label className="field-block">
+          <span className="field-label">Schulnummer</span>
+          <input
+            inputMode="numeric"
+            autoComplete="username"
+            value={form.school_id}
+            onChange={(event) => onFormChange('school_id', event.target.value)}
+            placeholder="10001329"
+          />
+        </label>
+        <label className="field-block">
+          <span className="field-label">Benutzername</span>
+          <input
+            autoComplete="username"
+            value={form.username}
+            onChange={(event) => onFormChange('username', event.target.value)}
+            placeholder="schueler"
+          />
+        </label>
+      </div>
 
-          <label className="field-block">
-            <span className="field-label">Passwort</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={form.password}
-              onChange={(event) => onFormChange('password', event.target.value)}
-              placeholder="lokal gespeichert"
-            />
-            <small className="field-note">
-              Wird lokal gespeichert, damit Login, Offline-Kopie und Benachrichtigungen ohne erneute Eingabe funktionieren.
-            </small>
-          </label>
-        </>
-      ) : null}
+      <label className="field-block">
+        <span className="field-label">Passwort</span>
+        <input
+          type="password"
+          autoComplete="current-password"
+          value={form.password}
+          onChange={(event) => onFormChange('password', event.target.value)}
+          placeholder="Passwort deiner Schule"
+        />
+        <small className="field-note">
+          Dieses Gerät bleibt angemeldet. Das Passwort landet verschlüsselt in der Anmeldung und nicht im Browserspeicher.
+        </small>
+      </label>
 
       {/* Server, Port und Datum braucht fast niemand. Eingeklappt passt auf dem
           Handy die eigentliche Anmeldung samt Button auf einen Bildschirm. */}

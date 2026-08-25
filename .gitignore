@@ -16,3 +16,6 @@ frontend/src-tauri/binaries/
 *.log
 .DS_Store
 Thumbs.db
+
+# Session-Schluessel des Backends
+backend/.vp26-session-key

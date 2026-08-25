@@ -1,4 +1,6 @@
+use std::fs;
 use std::net::{TcpStream, ToSocketAddrs};
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -200,6 +202,58 @@ fn set_close_to_tray(
     .lock()
     .map_err(|error| error.to_string())?;
   *close_to_tray = enabled;
+  Ok(())
+}
+
+// Die App hat keinen verlaesslichen Cookie-Speicher, deshalb liegt der
+// Anmeldetoken als Datei im App-Ordner des Nutzers.
+fn session_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+  let dir = app
+    .path()
+    .app_config_dir()
+    .map_err(|error| format!("App-Ordner nicht gefunden: {error}"))?;
+
+  fs::create_dir_all(&dir).map_err(|error| format!("App-Ordner konnte nicht angelegt werden: {error}"))?;
+
+  Ok(dir.join("session.token"))
+}
+
+#[tauri::command]
+fn load_session_token(app: tauri::AppHandle) -> Result<Option<String>, String> {
+  let path = session_file(&app)?;
+
+  if !path.exists() {
+    return Ok(None);
+  }
+
+  let token = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+  let trimmed = token.trim().to_string();
+
+  Ok(if trimmed.is_empty() { None } else { Some(trimmed) })
+}
+
+#[tauri::command]
+fn save_session_token(app: tauri::AppHandle, token: String) -> Result<(), String> {
+  let path = session_file(&app)?;
+  fs::write(&path, token.trim()).map_err(|error| error.to_string())?;
+
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+    let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+  }
+
+  Ok(())
+}
+
+#[tauri::command]
+fn clear_session_token(app: tauri::AppHandle) -> Result<(), String> {
+  let path = session_file(&app)?;
+
+  if path.exists() {
+    fs::remove_file(&path).map_err(|error| error.to_string())?;
+  }
+
   Ok(())
 }
 
@@ -526,6 +580,9 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       should_start_in_tray,
       set_close_to_tray,
+      load_session_token,
+      save_session_token,
+      clear_session_token,
       quit_app,
       native_platform,
       hide_to_tray,
