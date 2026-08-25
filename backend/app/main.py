@@ -143,7 +143,11 @@ def _apply_session_cookie(response: Response, request: Request, token: str) -> N
     # Header hinter einem Tunnel, verwirft der Browser das Cookie kommentarlos.
     # Lokal ueber http waere Secure umgekehrt genauso ein stiller Totalausfall.
     hostname = (request.url.hostname or "").lower()
-    is_local = hostname in LOCAL_HOSTS
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").lower()
+
+    # Beide Signale zusammen: schreibt ein Proxy den Host auf localhost um, verraet
+    # der Forwarded-Header die oeffentliche Herkunft - und umgekehrt.
+    is_local = hostname in LOCAL_HOSTS and forwarded_proto != "https"
 
     response.set_cookie(
         SESSION_COOKIE_NAME,
