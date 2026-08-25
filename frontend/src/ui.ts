@@ -33,6 +33,9 @@ type StoredState = Partial<FormState> &
   Partial<AppSettings> & {
     theme_mode?: ThemeMode
     settings_version?: number
+    // Welche Vorgabe die Website hatte, als zuletzt gespeichert wurde. Nur damit
+    // laesst sich "vom Nutzer eingetragen" von "damals uebernommen" unterscheiden.
+    configured_api_base_url?: string
   }
 
 type CachePayload = {
@@ -247,6 +250,7 @@ export function persistStoredState(form: FormState, settings: AppSettings) {
   const stored: StoredState = {
     settings_version: SETTINGS_STORAGE_VERSION,
     api_base_url: form.api_base_url,
+    configured_api_base_url: CONFIGURED_WEB_API_BASE_URL,
     school_id: form.school_id,
     username: form.username,
     // Kein Passwort mehr im Browserspeicher: die Anmeldung haelt das Backend in
@@ -295,15 +299,32 @@ export function todayString() {
   return toLocalDateString(new Date())
 }
 
+const PLACEHOLDER_API_BASE_URLS = new Set(['/api', '/api/', 'api'])
+
+function resolveInitialApiBaseUrl(stored: StoredState) {
+  const storedApiBaseUrl = stored.api_base_url?.trim()
+
+  if (!CONFIGURED_WEB_API_BASE_URL) {
+    return storedApiBaseUrl || FALLBACK_API_BASE_URL
+  }
+
+  if (!storedApiBaseUrl || PLACEHOLDER_API_BASE_URLS.has(storedApiBaseUrl)) {
+    return CONFIGURED_WEB_API_BASE_URL
+  }
+
+  // Ein Tunnel bekommt bei jedem Neustart eine neue Adresse. Wer den alten Wert
+  // nur uebernommen hatte, wuerde sonst dauerhaft auf ein totes Backend zeigen -
+  // deshalb gewinnt die Vorgabe der Website, solange niemand selbst etwas eintrug.
+  const wasTakenFromWebsite =
+    stored.configured_api_base_url === undefined || stored.configured_api_base_url === storedApiBaseUrl
+
+  return wasTakenFromWebsite ? CONFIGURED_WEB_API_BASE_URL : storedApiBaseUrl
+}
+
 export function createInitialFormState(): FormState {
   const stored = typeof window === 'undefined' ? {} : readStoredState()
   const today = todayString()
-  const storedApiBaseUrl = stored.api_base_url?.trim()
-  const initialApiBaseUrl =
-    CONFIGURED_WEB_API_BASE_URL &&
-    (!storedApiBaseUrl || storedApiBaseUrl === '/api' || storedApiBaseUrl === '/api/' || storedApiBaseUrl === 'api')
-      ? CONFIGURED_WEB_API_BASE_URL
-      : storedApiBaseUrl || FALLBACK_API_BASE_URL
+  const initialApiBaseUrl = resolveInitialApiBaseUrl(stored)
 
   return {
     api_base_url: initialApiBaseUrl,
