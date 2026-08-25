@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import { ArrowRight, WifiOff } from 'lucide-react'
+import { ArrowRight, ChevronLeft, WifiOff } from 'lucide-react'
 import { ConnectionFields } from './connection-fields'
 import { CONFIGURED_WEB_API_BASE_URL, formatDateTime, type FormState, type FormUpdater } from '../ui'
 
@@ -11,8 +11,10 @@ type AuthScreenProps = {
   notice: string | null
   hasCachedPlan: boolean
   lastRefreshAt: string | null
+  canReturnToPlan: boolean
   onFormChange: FormUpdater
   onSubmit: () => Promise<void>
+  onReturnToPlan: () => void
 }
 
 export function AuthScreen({
@@ -23,8 +25,10 @@ export function AuthScreen({
   notice,
   hasCachedPlan,
   lastRefreshAt,
+  canReturnToPlan,
   onFormChange,
   onSubmit,
+  onReturnToPlan,
 }: AuthScreenProps) {
   const showConnectionFields = !isNativeShell
   const hasConfiguredWebApiBase = Boolean(CONFIGURED_WEB_API_BASE_URL)
@@ -62,6 +66,7 @@ export function AuthScreen({
                   <span className="field-label">Schulnummer</span>
                   <input
                     inputMode="numeric"
+                    autoComplete="username"
                     value={form.school_id}
                     onChange={(event) => onFormChange('school_id', event.target.value)}
                     placeholder="10001329"
@@ -70,6 +75,7 @@ export function AuthScreen({
                 <label className="field-block">
                   <span className="field-label">Benutzername</span>
                   <input
+                    autoComplete="username"
                     value={form.username}
                     onChange={(event) => onFormChange('username', event.target.value)}
                     placeholder="schueler"
@@ -81,6 +87,7 @@ export function AuthScreen({
                 <span className="field-label">Passwort</span>
                 <input
                   type="password"
+                  autoComplete="current-password"
                   value={form.password}
                   onChange={(event) => onFormChange('password', event.target.value)}
                   placeholder="lokal gespeichert"
@@ -107,6 +114,12 @@ export function AuthScreen({
               <span>{isLoading ? 'Lade Plan ...' : 'Plan öffnen'}</span>
               <ArrowRight className="button-icon" />
             </button>
+            {canReturnToPlan ? (
+              <button type="button" className="button-secondary" onClick={onReturnToPlan}>
+                <ChevronLeft className="button-icon" />
+                Zurück zum Plan
+              </button>
+            ) : null}
           </div>
         </form>
       </section>

@@ -122,14 +122,24 @@ body,
   min-height: 100%;
 }
 
+html {
+  /* Verhindert, dass mobile Browser beim Drehen eigenmächtig Schriftgrößen skalieren. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   background: var(--app-bg);
   color: var(--text-primary);
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
-input {
+input,
+select,
+textarea {
+  /* select fehlte hier: Auswahlfelder liefen dadurch in Arial 13px statt in der App-Schrift. */
   font: inherit;
 }
 
@@ -142,6 +152,7 @@ button {
   border: 0;
 }
 
-input {
+input,
+select {
   min-width: 0;
 }

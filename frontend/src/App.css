@@ -300,6 +300,49 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.connection-advanced {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--panel-bg-soft);
+}
+
+.connection-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.85rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.connection-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.connection-advanced > summary::before {
+  content: '';
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 140ms ease;
+}
+
+.connection-advanced[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.connection-advanced__body {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0 0.85rem 0.85rem;
+}
+
 .field-block {
   display: grid;
   gap: 0.45rem;
@@ -2555,8 +2598,10 @@
     grid-template-rows: auto auto;
   }
 
+  /* Die untere Leiste steht als eigene Gridzeile im Fluss und verdeckt nichts
+     mehr, sobald man ganz unten ist - ein volles Leistenpolster wäre doppelt. */
   .vp26-shell--web .workspace-content--single {
-    padding-bottom: calc(5.9rem + env(safe-area-inset-bottom));
+    padding-bottom: 1rem;
   }
 
   .vp26-shell--web .workspace-datebar {
@@ -2622,7 +2667,8 @@
     align-items: stretch;
     justify-content: space-between;
     gap: 0.55rem;
-    padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-bottom));
+    padding: 0.5rem calc(0.75rem + env(safe-area-inset-right)) calc(0.5rem + env(safe-area-inset-bottom))
+      calc(0.75rem + env(safe-area-inset-left));
     border-right: 0;
     border-top: 1px solid var(--border-color);
     border-bottom: 0;
@@ -2652,12 +2698,13 @@
   }
 
   .nav-button {
-    gap: 0.24rem;
-    min-height: 3.35rem;
-    padding: 0.45rem 0.25rem;
+    gap: 0.2rem;
+    min-height: 3.1rem;
+    padding: 0.4rem 0.25rem;
     border-radius: 14px;
-    font-size: 0.58rem;
-    letter-spacing: 0.06em;
+    /* 0.58rem waren am Handy 8,6px - unter der Grenze des noch Lesbaren. */
+    font-size: 0.68rem;
+    letter-spacing: 0.01em;
   }
 
   .nav-button span {
@@ -2697,8 +2744,8 @@
   .workspace-datebar {
     grid-template-columns: 1fr;
     align-items: stretch;
-    gap: 0.7rem;
-    padding: 0.65rem 0.75rem;
+    gap: 0.4rem;
+    padding: 0.5rem calc(0.75rem + env(safe-area-inset-right)) 0.45rem calc(0.75rem + env(safe-area-inset-left));
   }
 
   .workspace-body {
@@ -2742,16 +2789,39 @@
     scroll-snap-align: start;
   }
 
+  /* Datumsfeld und Zeitstempel teilen sich eine Zeile, statt drei zu belegen.
+     Die sticky Kopfleiste kostet dadurch rund 80px weniger Bildschirmhöhe. */
   .date-strip__picker {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     width: 100%;
     flex: 1 1 100%;
-    gap: 0.32rem;
+    gap: 0.5rem;
     margin-left: 0;
     justify-self: stretch;
   }
 
+  .date-strip__picker .field-label {
+    display: none;
+  }
+
+  .date-strip__picker input {
+    order: 2;
+    width: auto;
+    flex: 0 0 auto;
+    padding: 0.34rem 0.5rem;
+    font-size: 0.82rem;
+  }
+
   .date-strip__stamp {
-    white-space: normal;
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .section-heading,
@@ -2770,6 +2840,30 @@
     gap: 0.7rem;
   }
 
+  /* Der Kopf einer Ansicht bleibt beim Scrollen stehen - er darf deshalb nur eine
+     Zeile hoch sein, sonst bleibt vom Plan selbst kaum etwas sichtbar. */
+  .content-panel--week > .section-heading,
+  .content-panel--rooms > .section-heading,
+  .content-panel--teachers > .section-heading,
+  .week-detail-header .section-heading {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .content-panel--week > .section-heading .section-eyebrow,
+  .content-panel--rooms > .section-heading .section-eyebrow,
+  .content-panel--teachers > .section-heading .section-eyebrow,
+  .week-detail-header .section-heading .section-eyebrow {
+    display: none;
+  }
+
+  .content-panel--teachers .panel-context {
+    display: none;
+  }
+
   .section-heading h2 {
     font-size: clamp(1.2rem, 4.8vw, 1.55rem);
   }
@@ -2779,15 +2873,15 @@
   }
 
   .workspace-content--single {
-    padding: 0.8rem 0.75rem 0.95rem;
+    padding: 0.8rem calc(0.75rem + env(safe-area-inset-right)) 0.95rem calc(0.75rem + env(safe-area-inset-left));
   }
 
   .workspace-content--single > * + * {
-    margin-top: 0.8rem;
+    margin-top: 0.7rem;
   }
 
   .workspace-content--single > .content-panel {
-    gap: 0.8rem;
+    gap: 0.6rem;
   }
 
   .content-panel--week > .section-heading,
@@ -2806,43 +2900,189 @@
   .field-grid,
   .scope-control,
   .summary-grid,
-  .settings-segment-control,
-  .room-plan__toolbar {
+  .settings-segment-control {
     grid-template-columns: 1fr;
+  }
+
+  /* Suche und Sortierung nebeneinander: gestapelt schob die Toolbar die erste
+     Karte unter die Bildschirmkante. */
+  .room-plan__toolbar {
+    grid-template-columns: minmax(0, 1fr) 8.5rem;
+    gap: 0.5rem;
+  }
+
+  /* Drei Kennzahlen als schmale Kachelreihe statt als drei volle Blöcke. */
+  .room-plan__summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .room-plan__summary .metric-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+    padding: 0.5rem 0.45rem;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .room-plan__summary .metric-panel__icon {
+    display: none;
+  }
+
+  .room-plan__summary .metric-panel span {
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .room-plan__summary .metric-panel strong {
+    margin-top: 0.1rem;
+    font-size: 1.05rem;
   }
 
   .week-chooser,
   .room-plan,
   .room-plan__detail-shell,
   .week-detail-shell {
-    gap: 0.75rem;
+    gap: 0.55rem;
+  }
+
+  /* Datum und Blockzahl passen nebeneinander - der Datumsstreifen darüber sagt
+     ohnehin schon, welcher Tag offen ist. */
+  .week-day-head--compact {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    /* Die 6.75rem der Wochenmatrix-Spaltenköpfe gelten hier nicht. */
+    min-height: 0;
+    gap: 0.1rem 0.5rem;
+    padding: 0.5rem 0.7rem;
+  }
+
+  .week-day-head--compact strong {
+    font-size: 0.94rem;
+  }
+
+  .week-day-head--compact span {
+    font-size: 0.8rem;
+  }
+
+  .week-compact {
+    gap: 0.55rem;
+  }
+
+  .week-detail-toolbar__stats .token {
+    min-height: 1.55rem;
+    font-size: 0.76rem;
   }
 
   .week-chooser {
     padding: 0.85rem;
   }
 
+  .week-chooser__head {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  .week-chooser__head .section-eyebrow {
+    display: none;
+  }
+
+  .week-chooser__head h2 {
+    font-size: 1.05rem;
+  }
+
+  .week-chooser__controls {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    min-width: 0;
+    flex: 0 0 auto;
+    gap: 0.5rem;
+  }
+
   .week-chooser__sort {
+    width: 8.5rem;
     min-width: 0;
   }
 
-  .directory-grid,
-  .week-chooser__grid,
-  .room-plan__list {
+  .week-chooser__sort .field-label {
+    display: none;
+  }
+
+  .stats-grid.teacher-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .teacher-metrics .metric-panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+    padding: 0.5rem 0.45rem;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .teacher-metrics .metric-panel__icon {
+    display: none;
+  }
+
+  .teacher-metrics .metric-panel span {
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .teacher-metrics .metric-panel strong {
+    margin-top: 0.1rem;
+    font-size: 1.05rem;
+  }
+
+  .directory-grid {
     grid-template-columns: 1fr;
     gap: 0.65rem;
   }
 
-  .week-chooser__grid--uniform {
-    grid-auto-rows: minmax(9.25rem, auto);
+  /* Klassen sind kurze Labels: zwei Spalten halbieren die Scrollstrecke der
+     Auswahl von rund 4800px auf gut 1300px. */
+  .week-chooser__grid {
+    grid-template-columns: repeat(auto-fill, minmax(9.25rem, 1fr));
+    gap: 0.55rem;
   }
 
-  .room-plan__list--uniform {
-    grid-auto-rows: minmax(13.75rem, auto);
+  .week-chooser__grid--uniform {
+    grid-auto-rows: minmax(0, auto);
+  }
+
+  .week-chooser-card {
+    gap: 0.4rem;
+    padding: 0.65rem 0.7rem;
   }
 
   .week-chooser-card__stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .week-chooser-card__stats span {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.76rem;
+    line-height: 1.3;
+  }
+
+  /* Räume und Lehrer tragen mehr Text - hier bleibt eine Spalte, dafür als
+     kompakte Zeile statt als hohe Kachel. */
+  .room-plan__list {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .room-plan__list--uniform {
+    grid-auto-rows: minmax(0, auto);
   }
 
   .week-chooser-card,
@@ -2850,12 +3090,50 @@
     min-height: 0;
   }
 
+  .room-card {
+    grid-template-rows: auto;
+    gap: 0.3rem;
+    padding: 0.6rem 0.75rem;
+  }
+
   .room-card__head {
-    align-items: start;
+    align-items: center;
   }
 
   .room-card__head > .status-badge {
-    align-self: start;
+    align-self: center;
+    min-width: 0;
+    min-height: 1.6rem;
+    padding: 0.28rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .room-card__live {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.15rem 0.45rem;
+  }
+
+  .room-card__live strong {
+    display: none;
+  }
+
+  .room-plan__list--uniform .room-card__live span {
+    -webkit-line-clamp: 1;
+  }
+
+  .room-card__meta,
+  .teacher-picker__list .room-card__meta {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.75rem;
+  }
+
+  .teacher-picker__list .room-card__live {
+    display: flex;
   }
 
   .status-badge {
@@ -2885,7 +3163,9 @@
     box-shadow: none;
   }
 
-  .week-day-head {
+  /* Gilt nur für die Spaltenköpfe der Wochenmatrix, nicht für den Tageskopf
+     der mobilen Ansicht. */
+  .week-table__grid .week-day-head {
     min-height: 6.75rem;
     padding: 0.8rem 0.85rem;
   }
@@ -2966,22 +3246,77 @@
     align-items: flex-start;
   }
 
-  .schedule-row,
   .catalog-row,
   .teacher-row {
     grid-template-columns: 1fr;
   }
 
+  /* Zeitschiene links, Inhalt rechts. Rein gestapelt braucht eine einzelne Stunde
+     sonst rund 250px und damit fast ein Drittel des Displays. */
+  .schedule-row {
+    grid-template-columns: 3.4rem minmax(0, 1fr) auto;
+    gap: 0.15rem 0.7rem;
+    padding: 0.7rem 0.8rem;
+    align-items: start;
+  }
+
+  .schedule-cell--period {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .schedule-cell--period strong {
+    font-size: 1.05rem;
+  }
+
+  .schedule-cell--time {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 0.78rem;
+  }
+
+  .schedule-cell--time strong {
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .schedule-cell--details {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .schedule-row > .status-badge {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 1.7rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.74rem;
+  }
+
   .teacher-card--compact {
-    grid-template-columns: 1fr;
+    grid-template-columns: 3.4rem minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+
+  .teacher-card__rail strong {
+    font-size: 1.35rem;
+  }
+
+  .teacher-card__rail span {
+    font-size: 0.76rem;
   }
 
   .teacher-card__headline {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: start;
+    gap: 0.5rem;
   }
 
   .teacher-card__meta {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.1rem;
   }
 
   .panel-header__actions,
@@ -3023,7 +3358,8 @@
   }
 
   .nav-rail {
-    padding-inline: 0.55rem;
+    padding-left: calc(0.55rem + env(safe-area-inset-left));
+    padding-right: calc(0.55rem + env(safe-area-inset-right));
   }
 
   .nav-stack,
@@ -3032,27 +3368,79 @@
   }
 
   .nav-button {
-    min-height: 3.2rem;
-    font-size: 0.54rem;
+    min-height: 3rem;
+    font-size: 0.64rem;
   }
 
   .nav-tool-button,
   .nav-button--bottom {
     width: 2.75rem;
     min-width: 2.75rem;
-    min-height: 3.2rem;
+    min-height: 3rem;
   }
 
   .workspace-datebar,
   .workspace-content--single {
-    padding-inline: 0.65rem;
+    padding-left: calc(0.65rem + env(safe-area-inset-left));
+    padding-right: calc(0.65rem + env(safe-area-inset-right));
   }
 
   .date-strip__day {
     min-width: 5.2rem;
   }
 
-  .week-chooser-card__stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .week-chooser__grid {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+}
+
+/* Handy im Querformat: dort bleiben nach Kopf- und Fußleiste nur rund 200px für
+   den Plan selbst - Zeitstempel und große Schaltflächen müssen weichen. */
+@media (max-width: 900px) and (max-height: 460px) and (orientation: landscape) {
+  .workspace-datebar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .date-strip__picker {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .date-strip__stamp {
+    display: none;
+  }
+
+  .nav-rail {
+    padding-top: 0.35rem;
+    padding-bottom: calc(0.35rem + env(safe-area-inset-bottom));
+  }
+
+  .nav-button {
+    min-height: 2.5rem;
+    font-size: 0.62rem;
+  }
+
+  .nav-tool-button,
+  .nav-button--bottom {
+    min-height: 2.5rem;
+  }
+
+  .week-day-head--compact {
+    padding: 0.35rem 0.6rem;
+  }
+
+  .content-panel--week > .section-heading,
+  .content-panel--rooms > .section-heading,
+  .content-panel--teachers > .section-heading,
+  .week-detail-header .section-heading {
+    padding-bottom: 0.45rem;
+  }
+
+  .section-heading h2 {
+    font-size: 1.05rem;
   }
 }

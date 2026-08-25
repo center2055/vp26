@@ -2,7 +2,6 @@
 import type { ReactNode, RefObject } from 'react'
 import { Fragment } from 'react'
 
-void useEffect
 import {
   BellDot,
   BookOpenText,
@@ -698,13 +697,20 @@ function resolveEntityForPlan(plan: PlanResponse | null, selectedEntityId?: stri
   )
 }
 
+function collectFreeDays(currentPlan: PlanResponse, cachedPlans: PlanResponse[]) {
+  // Ein Tag ohne veröffentlichte Plan-Datei kennt seine eigenen Ferientage nicht.
+  // Deshalb zählt, was irgendein geladener Tag derselben Schule als frei meldet.
+  return uniqueValues([...currentPlan.meta.free_days, ...cachedPlans.flatMap((entry) => entry.meta.free_days)])
+}
+
 function buildWeeklyDays(
   currentPlan: PlanResponse,
   cachedPlans: PlanResponse[],
+  freeDaySet: Set<string>,
   selectedEntityId?: string,
   selectedEntityLabel?: string,
 ) {
-  const weekDates = buildDateStrip(currentPlan.meta.requested_date, new Set(currentPlan.meta.free_days))
+  const weekDates = buildDateStrip(currentPlan.meta.requested_date, freeDaySet)
   const plansByDate = new Map<string, PlanResponse>()
 
   for (const cachedPlan of cachedPlans) {
@@ -724,7 +730,7 @@ function buildWeeklyDays(
       entity,
       slots,
       isCurrent: date === currentPlan.meta.requested_date,
-      isFreeDay: (dayPlan?.meta.free_days ?? currentPlan.meta.free_days).includes(date),
+      isFreeDay: freeDaySet.has(date),
     }
   })
 }
@@ -963,6 +969,15 @@ function teacherStatusRank(teacher: TeacherBoard) {
   return 0
 }
 
+function scrollWorkspaceToTop(contentRef: RefObject<HTMLElement | null>) {
+  // Im Desktop-Layout scrollt der Inhaltsbereich, im mobilen Web das Dokument.
+  contentRef.current?.scrollTo({ top: 0 })
+
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0 })
+  }
+}
+
 function SectionHeading({
   title,
   subtitle,
@@ -1004,6 +1019,22 @@ function DateStrip({
   const visibleDates = buildDateStrip(currentDate, freeDaySet)
   const previousWeek = moveCalendarWeeks(currentDate, -1)
   const nextWeek = moveCalendarWeeks(currentDate, 1)
+  const daysRef = useRef<HTMLDivElement | null>(null)
+
+  // Auf schmalen Displays passen nicht alle fünf Chips nebeneinander. Ohne diesen
+  // Ausgleich liegt der gewählte Tag ab Mittwoch außerhalb des sichtbaren Bereichs.
+  // Bewusst ohne "smooth": das Nachladen des Plans blockiert den Hauptthread lange
+  // genug, dass eine laufende Scroll-Animation verschluckt wird.
+  useEffect(() => {
+    const container = daysRef.current
+    const active = container?.querySelector<HTMLElement>('.date-strip__day.is-active')
+    if (!container || !active || container.scrollWidth <= container.clientWidth) {
+      return
+    }
+
+    const target = active.offsetLeft - container.offsetLeft - (container.clientWidth - active.offsetWidth) / 2
+    container.scrollLeft = Math.max(0, target)
+  }, [currentDate])
 
   return (
     <div ref={containerRef} className={isRefreshing ? 'workspace-datebar is-refreshing' : 'workspace-datebar'}>
@@ -1017,7 +1048,7 @@ function DateStrip({
           <ChevronLeft />
         </button>
 
-        <div className="date-strip__days">
+        <div ref={daysRef} className="date-strip__days">
           {visibleDates.map((date) => {
             const isActive = date === currentDate
             const isFree = freeDaySet.has(date)
@@ -1090,8 +1121,8 @@ function ScheduleTable({ slots }: { slots: ScheduleSlot[] }) {
             </div>
             <div className="schedule-cell schedule-cell--details">
               <div className="schedule-slot-list">
-                {slot.blocks.map((block) => (
-                  <div key={block.id} className="schedule-slot-item">
+                {slot.blocks.map((block, blockIndex) => (
+                  <div key={`${block.id}-${blockIndex}`} className="schedule-slot-item">
                     <div className="schedule-slot-item__head">
                       <strong>{block.subject ?? 'Entfall'}</strong>
                       <span>
@@ -1253,8 +1284,8 @@ function WeekTable({ days, compact = false }: { days: WeeklyDay[]; compact?: boo
               return (
                 <div key={`${row.id}-${day.date}`} className={scheduleRowClass(slot).replace('schedule-row', 'week-cell')}>
                   <div className="week-cell__body">
-                    {slot.blocks.map((block) => (
-                      <div key={block.id} className="week-cell__item">
+                    {slot.blocks.map((block, blockIndex) => (
+                      <div key={`${block.id}-${blockIndex}`} className="week-cell__item">
                         <strong>{block.subject ?? 'Entfall'}</strong>
                         <span>{joinOrFallback(block.teachers, 'Kein Lehrer')}</span>
                         <span>{joinOrFallback(block.rooms, 'Kein Raum')}</span>
@@ -1627,8 +1658,8 @@ function RoomDetail({
                 </div>
                 {row.slot ? (
                   <div className="room-timeline__content">
-                    {row.slot.blocks.map((block) => (
-                      <div key={block.id} className="room-timeline__item">
+                    {row.slot.blocks.map((block, blockIndex) => (
+                      <div key={`${block.id}-${blockIndex}`} className="room-timeline__item">
                         <strong>{joinOrFallback(block.classes, 'Keine Klasse')}</strong>
                         <span>
                           {(block.subject ?? 'Entfall')} · {joinOrFallback(block.teachers, 'Kein Lehrer')}
@@ -1788,10 +1819,12 @@ export function WorkspaceScreen({
   const selectedWeekStats = weekEntityPool.find((entity) => entity.label === selectedEntityWeekLabel) ?? null
 
   const selectedSlots = selectedEntity ? (entityScheduleSlots.get(selectedEntity.id) ?? []) : []
-  const upcomingDays = upcomingFreeDays(plan.meta.free_days, plan.meta.requested_date)
+  const freeDays = useMemo(() => collectFreeDays(plan, cachedPlans), [cachedPlans, plan])
+  const freeDaySet = useMemo(() => new Set(freeDays), [freeDays])
+  const upcomingDays = upcomingFreeDays(freeDays, plan.meta.requested_date)
   const firstBlock = selectedSlots[0]
   const lastBlock = selectedSlots[selectedSlots.length - 1]
-  const weeklyDays = buildWeeklyDays(plan, cachedPlans, selectedEntityId, selectedEntityWeekLabel)
+  const weeklyDays = buildWeeklyDays(plan, cachedPlans, freeDaySet, selectedEntityId, selectedEntityWeekLabel)
   const globalDaySlots = useMemo(() => buildGlobalDaySlots(plan), [plan])
   const roomBoards = buildRoomBoards(plan, cachedPlans)
   const normalizedRoomSearch = deferredRoomSearch.trim().toLowerCase()
@@ -1821,7 +1854,7 @@ export function WorkspaceScreen({
     })
   })()
   const isEmptyPlan = plan.meta.total_entities === 0
-  const isRequestedFreeDay = plan.meta.free_days.includes(plan.meta.requested_date)
+  const isRequestedFreeDay = freeDaySet.has(plan.meta.requested_date)
   const teacherPool = useMemo(() => {
     const nextBoards = normalizedTeacherSearch
       ? teacherBoards.filter((teacher) => teacherMatchesQuery(teacher, normalizedTeacherSearch))
@@ -1876,35 +1909,14 @@ export function WorkspaceScreen({
       ? 'content-columns teacher-columns'
       : 'content-columns teacher-columns teacher-columns--stacked'
 
+  // Die Auswahllisten öffnen sich direkt im JSX, sobald nichts ausgewählt ist. Ein
+  // zusätzlicher Effekt dafür hielt den Chooser offen, wenn nach einem Datumswechsel
+  // wieder ein Treffer vorlag.
+
+  // Beim Wechsel der Ansicht oben beginnen - sonst landet man mitten in der neuen Liste.
   useEffect(() => {
-    if (section !== 'week') {
-      return
-    }
-
-    if (!selectedEntityWeekLabel) {
-      setIsWeekChooserOpen(true)
-    }
-  }, [section, selectedEntityWeekLabel])
-
-  useEffect(() => {
-    if (section !== 'rooms') {
-      return
-    }
-
-    if (!selectedRoom) {
-      setIsRoomChooserOpen(true)
-    }
-  }, [section, selectedRoom])
-
-  useEffect(() => {
-    if (section !== 'teachers' || plan.meta.scope !== 'classes') {
-      return
-    }
-
-    if (!selectedTeacher) {
-      setIsTeacherChooserOpen(true)
-    }
-  }, [plan.meta.scope, section, selectedTeacher])
+    scrollWorkspaceToTop(contentRef)
+  }, [section])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1950,17 +1962,25 @@ export function WorkspaceScreen({
     if (nextEntityId) {
       onSelectEntity(nextEntityId)
       setIsWeekChooserOpen(false)
+      scrollWorkspaceToTop(contentRef)
     }
   }
 
   const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId)
     setIsRoomChooserOpen(false)
+    scrollWorkspaceToTop(contentRef)
   }
 
   const handleTeacherSelect = (teacherId: string) => {
     setSelectedTeacherId(teacherId)
     setIsTeacherChooserOpen(false)
+    scrollWorkspaceToTop(contentRef)
+  }
+
+  const handleOpenChooser = (open: (value: boolean) => void) => {
+    open(true)
+    scrollWorkspaceToTop(contentRef)
   }
 
   return (
@@ -1998,7 +2018,7 @@ export function WorkspaceScreen({
         <div className="nav-rail__spacer" />
         <button type="button" className="nav-button nav-button--bottom" onClick={onLogout} title="Abmelden">
           <LogOut className="nav-button__icon" />
-          <span>OUT</span>
+          <span>Logout</span>
         </button>
       </aside>
 
@@ -2008,7 +2028,7 @@ export function WorkspaceScreen({
           <DateStrip
             currentDate={plan.meta.requested_date}
             containerRef={datebarRef}
-            freeDays={plan.meta.free_days}
+            freeDays={freeDays}
             isRefreshing={isRefreshing}
             lastRefreshAt={lastRefreshAt}
             usingCachedPlan={usingCachedPlan}
@@ -2158,10 +2178,7 @@ export function WorkspaceScreen({
               <section className="content-panel content-panel--week">
                 {isWeekChooserOpen || !selectedEntityWeekLabel ? (
                   <>
-                    <SectionHeading
-                      title={selectedEntityWeekLabel ? `Unterricht ${selectedEntityWeekLabel}` : 'Unterricht'}
-                      subtitle="Montag bis Freitag"
-                    />
+                    <SectionHeading title="Unterricht" subtitle="Klasse oder Kurs wählen" />
 
                     <WeekChooser
                       entities={sortedWeekEntityPool}
@@ -2178,24 +2195,24 @@ export function WorkspaceScreen({
                         title={`Unterricht ${selectedEntityWeekLabel}`}
                         subtitle="Montag bis Freitag"
                         actions={
-                          <button type="button" className="button-secondary week-detail-back" onClick={() => setIsWeekChooserOpen(true)}>
+                          <button type="button" className="button-secondary week-detail-back" onClick={() => handleOpenChooser(setIsWeekChooserOpen)}>
                             <ChevronLeft className="button-icon" />
                             Klasse wechseln
                           </button>
                         }
                       />
-
-                      {selectedWeekStats ? (
-                        <div className="week-detail-toolbar week-detail-toolbar--compact">
-                          <div className="week-detail-toolbar__stats week-detail-toolbar__stats--start">
-                            <span className="token">{selectedWeekStats.dayCount} Tage</span>
-                            <span className="token">{selectedWeekStats.slotCount} Blöcke</span>
-                            <span className="token">{selectedWeekStats.changedCount} Änderungen</span>
-                            <span className="token">{selectedWeekStats.cancelledCount} Entfälle</span>
-                          </div>
-                        </div>
-                      ) : null}
                     </div>
+
+                    {selectedWeekStats ? (
+                      <div className="week-detail-toolbar week-detail-toolbar--compact">
+                        <div className="week-detail-toolbar__stats week-detail-toolbar__stats--start">
+                          <span className="token">{selectedWeekStats.dayCount} Tage</span>
+                          <span className="token">{selectedWeekStats.slotCount} Blöcke</span>
+                          <span className="token">{selectedWeekStats.changedCount} Änderungen</span>
+                          <span className="token">{selectedWeekStats.cancelledCount} Entfälle</span>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <section className="sub-panel planner-main planner-main--week">
                       {weeklyDays.some((day) => day.slots.length || day.isFreeDay) ? (
@@ -2219,7 +2236,7 @@ export function WorkspaceScreen({
                   subtitle="Heute frei und belegt"
                   actions={
                     !isRoomChooserOpen && selectedRoom ? (
-                      <button type="button" className="button-secondary week-detail-back" onClick={() => setIsRoomChooserOpen(true)}>
+                      <button type="button" className="button-secondary week-detail-back" onClick={() => handleOpenChooser(setIsRoomChooserOpen)}>
                         <ChevronLeft className="button-icon" />
                         Raum wechseln
                       </button>
@@ -2252,7 +2269,7 @@ export function WorkspaceScreen({
                     <>
                       <span className="panel-context">So gut wie möglich aus Klassenblöcken abgeleitet</span>
                       {!isTeacherChooserOpen && selectedTeacher ? (
-                        <button type="button" className="button-secondary week-detail-back" onClick={() => setIsTeacherChooserOpen(true)}>
+                        <button type="button" className="button-secondary week-detail-back" onClick={() => handleOpenChooser(setIsTeacherChooserOpen)}>
                           <ChevronLeft className="button-icon" />
                           Lehrer wechseln
                         </button>

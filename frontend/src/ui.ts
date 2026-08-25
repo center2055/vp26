@@ -58,7 +58,7 @@ export const CONFIGURED_WEB_API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.tr
 export const FALLBACK_API_BASE_URL = CONFIGURED_WEB_API_BASE_URL || '/api'
 const SETTINGS_STORAGE_VERSION = 3
 
-const PLAN_CACHE_LIMIT = 45
+const PLAN_CACHE_LIMIT = 20
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme_mode: 'system',
@@ -76,10 +76,10 @@ export const scopeOptions: Array<{ value: PlanScope; label: string; caption: str
 ]
 
 export const workspaceSections: Array<{ value: WorkspaceSection; label: string; shortLabel: string }> = [
-  { value: 'week', label: 'Unterricht', shortLabel: 'UN' },
-  { value: 'rooms', label: 'Raumplan', shortLabel: 'RA' },
-  { value: 'teachers', label: 'Lehrerfinder', shortLabel: 'LF' },
-  { value: 'settings', label: 'Einstellungen', shortLabel: 'SE' },
+  { value: 'week', label: 'Unterricht', shortLabel: 'Plan' },
+  { value: 'rooms', label: 'Raumplan', shortLabel: 'Räume' },
+  { value: 'teachers', label: 'Lehrerfinder', shortLabel: 'Lehrer' },
+  { value: 'settings', label: 'Einstellungen', shortLabel: 'Setup' },
 ]
 
 export const scheduleSections: Array<{ value: ScheduleSubsection; label: string }> = [
@@ -153,11 +153,27 @@ function readPlanCacheEntries() {
 }
 
 function writePlanCacheEntries(entries: CachedPlanState[]) {
-  const payload: CachePayload = {
-    entries: normalizeCacheEntries(entries),
+  // Ein Schultag mit allen Klassen sind schnell mehrere hundert Kilobyte. Läuft der
+  // localStorage voll, werden die ältesten Tage verworfen statt den Ladevorgang zu
+  // sprengen - ohne Schutz landet ein frisch geladener Plan sonst im Fehlerpfad.
+  let remaining = normalizeCacheEntries(entries)
+
+  while (remaining.length) {
+    const payload: CachePayload = { entries: remaining }
+
+    try {
+      window.localStorage.setItem(PLAN_CACHE_KEY, JSON.stringify(payload))
+      return
+    } catch {
+      remaining = remaining.slice(0, Math.floor(remaining.length / 2))
+    }
   }
 
-  window.localStorage.setItem(PLAN_CACHE_KEY, JSON.stringify(payload))
+  try {
+    window.localStorage.removeItem(PLAN_CACHE_KEY)
+  } catch {
+    // Privater Modus ohne Storage: Offline-Kopien sind dann schlicht nicht verfügbar.
+  }
 }
 
 export function readStoredState(): StoredState {
@@ -247,7 +263,11 @@ export function persistStoredState(form: FormState, settings: AppSettings) {
     notification_entity_id: settings.notification_entity_id,
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+  } catch {
+    // Safari im privaten Modus verweigert das Schreiben - die App läuft trotzdem weiter.
+  }
 }
 
 export function clearStoredSession(settings: AppSettings) {
@@ -261,12 +281,17 @@ export function clearStoredSession(settings: AppSettings) {
     notification_entity_id: '',
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
-  window.localStorage.removeItem(PLAN_CACHE_KEY)
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+    window.localStorage.removeItem(PLAN_CACHE_KEY)
+  } catch {
+    // siehe persistStoredState
+  }
 }
 
 export function todayString() {
-  return new Date().toISOString().slice(0, 10)
+  // Bewusst lokal statt toISOString(): in MESZ liefert UTC bis 02:00 Uhr noch den Vortag.
+  return toLocalDateString(new Date())
 }
 
 export function createInitialFormState(): FormState {

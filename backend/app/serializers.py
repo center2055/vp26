@@ -52,13 +52,15 @@ def _entity_map(plan_tag, scope: PlanScope) -> dict[str, object]:
     raise ValueError(f"Plan type does not match requested scope '{scope}'.")
 
 
-def serialize_lesson(lesson) -> LessonItem:
+def serialize_lesson(lesson, index: int = 0) -> LessonItem:
     is_cancelled = lesson.ausfall
     is_changed = lesson.geändert
     status = "cancelled" if is_cancelled else "changed" if is_changed else "scheduled"
 
     return LessonItem(
-        id=f"{lesson.periode}-{lesson.kursnummer or 'free'}-{','.join(lesson.klassen or ['-'])}",
+        # Der laufende Index gehört in die ID: geteilte Gruppen ohne Kursnummer liefern
+        # in derselben Stunde sonst identische IDs und damit doppelte React-Keys.
+        id=f"{lesson.periode}-{index}-{lesson.kursnummer or 'free'}-{','.join(lesson.klassen or ['-'])}",
         period=lesson.periode,
         start_time=_format_time(lesson.beginn),
         end_time=_format_time(lesson.ende),
@@ -112,7 +114,10 @@ def serialize_duty(duty) -> DutyItem:
 def _flatten_lessons(entity) -> list[LessonItem]:
     lessons: list[LessonItem] = []
     for period in sorted(entity.stunden):
-        lessons.extend(serialize_lesson(lesson) for lesson in entity.stunden[period])
+        lessons.extend(
+            serialize_lesson(lesson, index)
+            for index, lesson in enumerate(entity.stunden[period])
+        )
     return lessons
 
 
@@ -175,7 +180,7 @@ def serialize_plan(plan_tag, request: FetchPlanRequest, source: str = "vpmobil")
             requested_date=request.date,
             headline=f"{_scope_label(request.scope)} am {request.date.strftime('%d.%m.%Y')}",
             published_at=_format_datetime(getattr(plan_tag, "zeitstempel", None)),
-            fetched_at=datetime.now().isoformat(timespec="seconds"),
+            fetched_at=datetime.now().astimezone().isoformat(timespec="seconds"),
             additional_info=getattr(plan_tag, "zusatzInfo", None),
             free_days=list(getattr(plan_tag, "freieTage", [])),
             sick_teachers=list(getattr(plan_tag, "lehrerKrank", [])),
@@ -196,9 +201,9 @@ def serialize_empty_plan(
     additional_info: str | None = None,
     free_days: Iterable[date] | None = None,
 ) -> PlanResponse:
+    # Bewusst ohne das angefragte Datum: "keine Plan-Datei" heißt nicht "schulfrei".
+    # Sonst markiert die Oberfläche jeden noch nicht veröffentlichten Tag als frei.
     resolved_free_days = sorted(set(free_days or []))
-    if request.date not in resolved_free_days:
-        resolved_free_days.append(request.date)
 
     return PlanResponse(
         meta=PlanMeta(
@@ -207,7 +212,7 @@ def serialize_empty_plan(
             requested_date=request.date,
             headline=f"{_scope_label(request.scope)} am {request.date.strftime('%d.%m.%Y')}",
             published_at=None,
-            fetched_at=datetime.now().isoformat(timespec="seconds"),
+            fetched_at=datetime.now().astimezone().isoformat(timespec="seconds"),
             additional_info=additional_info
             or "Für dieses Datum liegt keine Plan-Datei vor. Das ist oft ein freier Tag, Ferien oder noch nicht veröffentlicht.",
             free_days=resolved_free_days,

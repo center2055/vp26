@@ -25,7 +25,7 @@ frontend/
 ```powershell
 python -m venv backend/.venv
 backend/.venv/Scripts/python -m pip install -r backend/requirements.txt
-backend/.venv/Scripts/python -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+backend/.venv/Scripts/python -m uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8010
 ```
 
 Die Backend-Konfiguration liegt in `backend/.env` oder `backend/.env.local`.
@@ -38,7 +38,7 @@ npm install
 npm run dev
 ```
 
-Im Dev-Modus proxyt Vite `/api` automatisch auf `http://127.0.0.1:8000`.
+Im Dev-Modus proxyt Vite `/api` automatisch auf `http://127.0.0.1:8010`.
 
 ### Desktop
 

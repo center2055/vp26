@@ -53,7 +53,28 @@ type ApplyPlanOptions = ConnectOptions & {
 const BACKGROUND_TIMEOUT_MS = 20_000
 const PREFETCH_TIMEOUT_MS = 15_000
 const HAS_CONFIGURED_WEB_API_BASE = Boolean(import.meta.env.VITE_API_BASE_URL?.trim())
-const initialCachedPlan = typeof window === 'undefined' ? null : readLatestCachedPlan()
+
+// Beim Start muss die Offline-Kopie zum Datum im Formular passen. Vorher wurde
+// stumpf der zuletzt gespeicherte Tag gezeigt, während das Formular auf einem
+// anderen Datum stand - ein Klick auf genau diesen Tag galt dann als "keine
+// Änderung" und die Ansicht ließ sich nicht mehr dorthin bewegen.
+function createStartupState() {
+  const form = createInitialFormState()
+
+  if (typeof window === 'undefined') {
+    return { form, cachedPlan: null }
+  }
+
+  const cachedPlan = readCachedPlanForForm(form, true) ?? readLatestCachedPlan()
+
+  return {
+    form: cachedPlan ? { ...form, date: cachedPlan.requested_date } : form,
+    cachedPlan,
+  }
+}
+
+const startupState = createStartupState()
+const initialCachedPlan = startupState.cachedPlan
 
 let hasAttemptedBootstrap = false
 
@@ -134,9 +155,9 @@ function buildNotificationCopy(plan: PlanResponse, entityId: string) {
 
 function App() {
   const nativeShell = isNativeShell()
-  const [systemThemeTick, setSystemThemeTick] = useState(0)
+  const [systemTheme, setSystemTheme] = useState<Theme>(() => resolveTheme('system'))
   const [screen, setScreen] = useState<AppScreen>(initialCachedPlan ? 'workspace' : 'auth')
-  const [form, setForm] = useState<FormState>(() => createInitialFormState())
+  const [form, setForm] = useState<FormState>(() => startupState.form)
   const [settings, setSettings] = useState<AppSettings>(() => createInitialAppSettings())
   const [plan, setPlan] = useState<PlanResponse | null>(initialCachedPlan?.plan ?? null)
   const [section, setSection] = useState<WorkspaceSection>('week')
@@ -147,7 +168,7 @@ function App() {
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(initialCachedPlan?.cached_at ?? null)
   const [usingCachedPlan, setUsingCachedPlan] = useState(Boolean(initialCachedPlan))
   const [cacheRevision, setCacheRevision] = useState(0)
-  const [cachedPlans, setCachedPlans] = useState<PlanResponse[]>(() => readCachedPlansForForm(createInitialFormState()).map((entry) => entry.plan))
+  const [cachedPlans, setCachedPlans] = useState<PlanResponse[]>(() => readCachedPlansForForm(startupState.form).map((entry) => entry.plan))
   const [hasCachedPlan, setHasCachedPlan] = useState(() => Boolean(readLatestCachedPlan()))
   const [, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -158,12 +179,16 @@ function App() {
   const notificationSignatureRef = useRef<string | null>(
     initialCachedPlan ? buildNotificationSignature(initialCachedPlan.plan, settings.notification_entity_id || form.entity_id) : null,
   )
+  const planRef = useRef<PlanResponse | null>(plan)
   const activeRequestIdRef = useRef(0)
   const activeRequestControllerRef = useRef<AbortController | null>(null)
   const prefetchingKeysRef = useRef<Set<string>>(new Set())
   const refreshRef = useRef<() => Promise<void>>(async () => undefined)
   const loadPlanRef = useRef<(nextForm: FormState, options?: ConnectOptions) => Promise<void>>(async () => undefined)
-  const theme: Theme = useMemo(() => resolveTheme(settings.theme_mode), [settings.theme_mode, systemThemeTick])
+  const theme: Theme = useMemo(
+    () => (settings.theme_mode === 'system' ? systemTheme : settings.theme_mode),
+    [settings.theme_mode, systemTheme],
+  )
 
   useEffect(() => {
     persistStoredState(form, settings)
@@ -176,13 +201,13 @@ function App() {
   }, [settings.theme_mode, theme])
 
   useEffect(() => {
-    if (settings.theme_mode !== 'system' || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
       return
     }
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: light)')
     const handleChange = () => {
-      setSystemThemeTick((current) => current + 1)
+      setSystemTheme(mediaQuery.matches ? 'light' : 'dark')
     }
 
     if (typeof mediaQuery.addEventListener === 'function') {
@@ -196,7 +221,7 @@ function App() {
     return () => {
       mediaQuery.removeListener(handleChange)
     }
-  }, [settings.theme_mode])
+  }, [])
 
   useEffect(() => {
     void loadNativeAutostartState().then((enabled) => {
@@ -453,18 +478,19 @@ function App() {
         setError(message)
       }
     } finally {
+      // Nur der jeweils jüngste Request räumt auf, dann aber beide Flags: bricht ein
+      // Hintergrund-Refresh einen laufenden Vordergrund-Request ab, blieb "isLoading"
+      // sonst dauerhaft stehen und die Oberfläche wirkte eingefroren.
       if (activeRequestIdRef.current === requestId) {
         activeRequestControllerRef.current = null
-        if (isBackground) {
-          setIsRefreshing(false)
-        } else {
-          setIsLoading(false)
-        }
+        setIsRefreshing(false)
+        setIsLoading(false)
       }
     }
   }
 
   loadPlanRef.current = loadPlan
+  planRef.current = plan
 
   useEffect(() => {
     if (hasAttemptedBootstrap) {
@@ -478,7 +504,7 @@ function App() {
       setError(null)
 
       try {
-        const initialForm = createInitialFormState()
+        const initialForm = startupState.form
         const isWebWithoutApiBase =
           !nativeShell && !HAS_CONFIGURED_WEB_API_BASE && initialForm.api_base_url === FALLBACK_API_BASE_URL
 
@@ -516,7 +542,12 @@ function App() {
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Bootstrap konnte nicht geladen werden.'
 
-        if (initialCachedPlan) {
+        // Der Bootstrap läuft asynchron weiter, während bereits geklickt werden kann.
+        // Ohne diese Prüfung warf sein Fehlerpfad den gerade geöffneten Tag wieder
+        // auf die beim Start geladene Offline-Kopie zurück.
+        const hasActivePlanRequest = activeRequestIdRef.current > 0
+
+        if (initialCachedPlan && !planRef.current && !hasActivePlanRequest) {
           startTransition(() => {
             setPlan(initialCachedPlan.plan)
             setScreen('workspace')
@@ -524,7 +555,7 @@ function App() {
             setNotice(`Offline-Kopie geladen · Stand ${formatDateTime(initialCachedPlan.cached_at)}`)
             setLastRefreshAt(initialCachedPlan.cached_at)
           })
-        } else {
+        } else if (!initialCachedPlan) {
           setError(message)
           setNotice(null)
         }
@@ -569,7 +600,9 @@ function App() {
   }
 
   async function handleDateChange(nextDate: string) {
-    if (nextDate === form.date) {
+    // Auch den angezeigten Plan prüfen: nach einem Offline-Start können Formular
+    // und sichtbarer Tag auseinanderlaufen.
+    if (nextDate === form.date && nextDate === plan?.meta.requested_date) {
       return
     }
 
@@ -655,8 +688,10 @@ function App() {
               notice={notice}
               hasCachedPlan={hasCachedPlan}
               lastRefreshAt={lastRefreshAt}
+              canReturnToPlan={screen === 'auth' && Boolean(plan)}
               onFormChange={updateForm}
               onSubmit={handlePrimarySubmit}
+              onReturnToPlan={() => setScreen('workspace')}
             />
           ) : (
             <WorkspaceScreen
