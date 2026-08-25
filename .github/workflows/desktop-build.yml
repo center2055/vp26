@@ -167,17 +167,49 @@ jobs:
 
       # Auf Android gibt es keinen mitgelieferten Python-Dienst, deshalb muss die
       # App auf ein erreichbares Backend zeigen.
-      - name: Build debug APK
+      # Release statt Debug und nur arm64: die universelle Debug-Variante wog
+      # 691 MB, was zum Aufspielen aufs Handy unbrauchbar ist.
+      - name: Build release APK (arm64)
         working-directory: frontend
         env:
           VITE_API_BASE_URL: ${{ vars.VP26_WEB_API_BASE_URL }}
-        run: npx tauri android build --debug --apk
+        run: npx tauri android build --apk --target aarch64
 
-      - name: Collect APK
+      # Eine unsignierte APK laesst sich nicht installieren. Liegt ein eigener
+      # Schluessel als Secret bereit, wird er genommen - sonst ein Wegwerfschluessel
+      # nur fuer Testinstallationen.
+      - name: Sign APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.VP26_ANDROID_KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.VP26_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.VP26_ANDROID_KEY_ALIAS }}
         run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/vp26.keystore"
+
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$keystore"
+            store_pass="$KEYSTORE_PASSWORD"
+            alias_name="$KEY_ALIAS"
+            echo "Signiere mit hinterlegtem Schluessel."
+          else
+            store_pass="android"
+            alias_name="vp26-test"
+            keytool -genkeypair -v -keystore "$keystore" -storepass "$store_pass"               -keypass "$store_pass" -alias "$alias_name" -keyalg RSA -keysize 2048               -validity 10000 -dname "CN=VP26 Test, O=NSRS, C=DE"
+            echo "::warning::Kein VP26_ANDROID_KEYSTORE hinterlegt - die APK ist mit einem Wegwerfschluessel signiert. Updates lassen sich nicht darueber installieren."
+          fi
+
+          build_tools="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
           mkdir -p apk-out
-          find frontend/src-tauri/gen/android -name '*.apk' -print -exec cp {} apk-out/ \;
-          ls -la apk-out
+
+          find frontend/src-tauri/gen/android -name '*.apk' | while read -r apk; do
+            target="apk-out/vp26-$(basename "$apk" | sed 's/-unsigned//')"
+            cp "$apk" "$target"
+            "$build_tools/apksigner" sign --ks "$keystore" --ks-pass "pass:$store_pass"               --key-pass "pass:$store_pass" --ks-key-alias "$alias_name" "$target"
+            "$build_tools/apksigner" verify --print-certs "$target" | head -3
+          done
+
+          ls -lh apk-out
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
