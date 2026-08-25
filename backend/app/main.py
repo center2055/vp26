@@ -133,19 +133,25 @@ def bootstrap(request: Request) -> dict[str, object]:
     }
 
 
+LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]", "tauri.localhost"}
+
+
 def _apply_session_cookie(response: Response, request: Request, token: str) -> None:
-    # Ueber HTTPS (GitHub Pages plus Tunnel) laeuft die Seite auf einer anderen
-    # Domain als das Backend, dafuer braucht das Cookie SameSite=None und Secure.
-    # Lokal ueber http waere Secure dagegen ein stiller Totalausfall.
-    is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    # Alles ausser einem lokalen Aufruf gilt als oeffentlich: dort laeuft die Seite
+    # auf einer anderen Domain als das Backend, das Cookie braucht SameSite=None
+    # samt Secure. Bewusst nicht an x-forwarded-proto festgemacht - fehlt der
+    # Header hinter einem Tunnel, verwirft der Browser das Cookie kommentarlos.
+    # Lokal ueber http waere Secure umgekehrt genauso ein stiller Totalausfall.
+    hostname = (request.url.hostname or "").lower()
+    is_local = hostname in LOCAL_HOSTS
 
     response.set_cookie(
         SESSION_COOKIE_NAME,
         token,
         max_age=SESSION_MAX_AGE_SECONDS,
         httponly=True,
-        secure=is_https,
-        samesite="none" if is_https else "lax",
+        secure=not is_local,
+        samesite="lax" if is_local else "none",
         path="/",
     )
 
