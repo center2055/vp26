@@ -1,16 +1,29 @@
 use std::fs;
-use std::net::{TcpStream, ToSocketAddrs};
 use std::path::PathBuf;
 use std::sync::Mutex;
+
+// Tray, Menue und der Startbildschirm-Umweg gibt es nur auf dem Desktop. Auf
+// Android existieren diese Module gar nicht - ungegatet waere das ein Compile-Fehler.
+#[cfg(desktop)]
+use std::net::{TcpStream, ToSocketAddrs};
+#[cfg(desktop)]
 use std::thread;
+#[cfg(desktop)]
 use std::time::Duration;
 
+#[cfg(desktop)]
 use tauri::image::Image;
+#[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
+#[cfg(desktop)]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+#[cfg(desktop)]
 use tauri::utils::config::{WebviewUrl, WindowConfig};
-use tauri::{Manager, WindowEvent};
+use tauri::Manager;
+#[cfg(desktop)]
+use tauri::WindowEvent;
 
+#[cfg(desktop)]
 const BOOTSTRAP_SCRIPT: &str = r#"
 const style = document.createElement('style');
 style.textContent = `
@@ -187,6 +200,11 @@ struct NativeShellState {
   close_to_tray: Mutex<bool>,
 }
 
+#[cfg(not(desktop))]
+fn should_launch_hidden() -> bool {
+  false
+}
+
 #[tauri::command]
 fn should_start_in_tray() -> bool {
   should_launch_hidden()
@@ -267,10 +285,12 @@ fn native_platform() -> &'static str {
   std::env::consts::OS
 }
 
+#[cfg(desktop)]
 fn should_launch_hidden() -> bool {
   std::env::args().any(|argument| argument == "--tray")
 }
 
+#[cfg(desktop)]
 fn hide_window_to_tray(window: &tauri::WebviewWindow) -> Result<(), String> {
   window
     .set_skip_taskbar(true)
@@ -279,6 +299,7 @@ fn hide_window_to_tray(window: &tauri::WebviewWindow) -> Result<(), String> {
   Ok(())
 }
 
+#[cfg(desktop)]
 fn show_window(window: &tauri::WebviewWindow) -> Result<(), String> {
   window
     .set_skip_taskbar(false)
@@ -289,6 +310,7 @@ fn show_window(window: &tauri::WebviewWindow) -> Result<(), String> {
   Ok(())
 }
 
+#[cfg(desktop)]
 fn with_main_window<T>(
   app: &tauri::AppHandle,
   action: impl FnOnce(&tauri::WebviewWindow) -> Result<T, String>,
@@ -301,14 +323,33 @@ fn with_main_window<T>(
 
 #[tauri::command]
 fn hide_to_tray(app: tauri::AppHandle) -> Result<(), String> {
-  with_main_window(&app, hide_window_to_tray)
+  #[cfg(desktop)]
+  {
+    return with_main_window(&app, hide_window_to_tray);
+  }
+
+  #[cfg(not(desktop))]
+  {
+    let _ = app;
+    Err("Der Tray ist nur in der Desktop-App verfügbar.".to_string())
+  }
 }
 
 #[tauri::command]
 fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
-  with_main_window(&app, show_window)
+  #[cfg(desktop)]
+  {
+    return with_main_window(&app, show_window);
+  }
+
+  #[cfg(not(desktop))]
+  {
+    let _ = app;
+    Ok(())
+  }
 }
 
+#[cfg(desktop)]
 fn main_window_config(app: &tauri::AppHandle) -> Result<WindowConfig, String> {
   app.config()
     .app
@@ -320,6 +361,7 @@ fn main_window_config(app: &tauri::AppHandle) -> Result<WindowConfig, String> {
     .ok_or_else(|| "Fensterkonfiguration fuer 'main' fehlt.".to_string())
 }
 
+#[cfg(desktop)]
 fn build_main_window(app: &mut tauri::App) -> Result<bool, Box<dyn std::error::Error>> {
   let mut config = main_window_config(app.handle())?;
   let target = resolve_main_window_target(app.handle(), &config)?;
@@ -347,6 +389,7 @@ fn build_main_window(app: &mut tauri::App) -> Result<bool, Box<dyn std::error::E
   Ok(use_boot_redirect)
 }
 
+#[cfg(desktop)]
 fn resolve_main_window_target(
   _app: &tauri::AppHandle,
   window_config: &WindowConfig,
@@ -378,11 +421,13 @@ fn resolve_main_window_target(
   }
 }
 
+#[cfg(desktop)]
 fn needs_local_target_probe(url: &tauri::webview::Url) -> bool {
   matches!(url.scheme(), "http" | "https")
     && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
 }
 
+#[cfg(desktop)]
 fn wait_for_target(url: &tauri::webview::Url) -> Result<(), String> {
   if !needs_local_target_probe(url) {
     return Ok(());
@@ -420,6 +465,7 @@ fn wait_for_target(url: &tauri::webview::Url) -> Result<(), String> {
   ))
 }
 
+#[cfg(desktop)]
 fn update_boot_screen(window: &tauri::WebviewWindow, mode: &str, headline: &str, detail: &str) {
   let script = format!(
     "window.__VP26_BOOT_PENDING__ = {{ mode: {mode}, headline: {headline}, detail: {detail} }}; window.__VP26_BOOT__ && window.__VP26_BOOT__.setState({mode}, {headline}, {detail});",
@@ -432,6 +478,7 @@ fn update_boot_screen(window: &tauri::WebviewWindow, mode: &str, headline: &str,
   let _ = window.eval(script);
 }
 
+#[cfg(desktop)]
 fn launch_main_window(app: tauri::AppHandle) {
   thread::spawn(move || {
     thread::sleep(Duration::from_millis(60));
@@ -489,6 +536,7 @@ fn launch_main_window(app: tauri::AppHandle) {
   });
 }
 
+#[cfg(desktop)]
 fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
   let open_item = MenuItemBuilder::with_id("show", "VP26 öffnen").build(app)?;
   let quit_item = MenuItemBuilder::with_id("quit", "Beenden").build(app)?;
@@ -532,44 +580,53 @@ fn build_tray(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
-    .manage(NativeShellState::default())
-    .on_window_event(|window, event| {
-      if window.label() != "main" {
-        return;
-      }
+  let builder = tauri::Builder::default().manage(NativeShellState::default());
 
-      if let WindowEvent::CloseRequested { api, .. } = event {
-        let should_hide = window
-          .app_handle()
-          .state::<NativeShellState>()
-          .close_to_tray
-          .lock()
-          .map(|state| *state)
-          .unwrap_or(false);
+  // Close-to-Tray gibt es nur auf dem Desktop, deshalb haengt der Handler auch
+  // nur dort im Builder statt sich innen durch cfg-Zweige zu winden.
+  #[cfg(desktop)]
+  let builder = builder.on_window_event(|window, event| {
+    if window.label() != "main" {
+      return;
+    }
 
-        if should_hide {
-          api.prevent_close();
-          if let Some(main_window) = window.app_handle().get_webview_window("main") {
-            let _ = hide_window_to_tray(&main_window);
-          }
+    if let WindowEvent::CloseRequested { api, .. } = event {
+      let should_hide = window
+        .app_handle()
+        .state::<NativeShellState>()
+        .close_to_tray
+        .lock()
+        .map(|state| *state)
+        .unwrap_or(false);
+
+      if should_hide {
+        api.prevent_close();
+        if let Some(main_window) = window.app_handle().get_webview_window("main") {
+          let _ = hide_window_to_tray(&main_window);
         }
       }
-    })
+    }
+  });
+
+  builder
     .setup(|app| {
+      // Tray, Autostart und der selbst gebaute Fensterstart sind Desktop-Sachen.
+      // Auf Android legt Tauri das Fenster selbst an, ein Tray existiert nicht.
       #[cfg(desktop)]
-      app.handle().plugin(
-        tauri_plugin_autostart::Builder::new()
-          .args(["--tray"])
-          .app_name("VP26")
-          .build(),
-      )?;
+      {
+        app.handle().plugin(
+          tauri_plugin_autostart::Builder::new()
+            .args(["--tray"])
+            .app_name("VP26")
+            .build(),
+        )?;
 
-      let use_boot_redirect = build_main_window(app)?;
-      build_tray(app)?;
+        let use_boot_redirect = build_main_window(app)?;
+        build_tray(app)?;
 
-      if use_boot_redirect {
-        launch_main_window(app.handle().clone());
+        if use_boot_redirect {
+          launch_main_window(app.handle().clone());
+        }
       }
 
       Ok(())

@@ -10,7 +10,7 @@ type NativeShellOptions = {
   onRefresh: () => Promise<void>
 }
 
-export type NativePlatform = 'linux' | 'windows' | 'macos' | 'unknown'
+export type NativePlatform = 'linux' | 'windows' | 'macos' | 'android' | 'ios' | 'unknown'
 
 const DEFAULT_API_BASE = '/api'
 const SIDECAR_NAME = 'binaries/vp26-backend'
@@ -113,7 +113,13 @@ export async function getNativePlatform(): Promise<NativePlatform> {
 
   try {
     const platform = await invoke<string>('native_platform')
-    if (platform === 'linux' || platform === 'windows' || platform === 'macos') {
+    if (
+      platform === 'linux' ||
+      platform === 'windows' ||
+      platform === 'macos' ||
+      platform === 'android' ||
+      platform === 'ios'
+    ) {
       return platform
     }
   } catch {
@@ -131,6 +137,13 @@ export async function resolveApiBase(apiBaseUrl: string) {
   }
 
   if (normalized !== DEFAULT_API_BASE) {
+    return normalized
+  }
+
+  // Der Python-Dienst wird nur fuer Windows und Linux mitgeliefert. Auf dem Handy
+  // gibt es ihn nicht, dort muss eine erreichbare API-Basis eingetragen sein.
+  const platform = await getNativePlatform()
+  if (platform === 'android' || platform === 'ios') {
     return normalized
   }
 
@@ -247,7 +260,12 @@ export async function syncNativeCloseToTray(enabled: boolean) {
     return
   }
 
-  await invoke('set_close_to_tray', { enabled })
+  try {
+    await invoke('set_close_to_tray', { enabled })
+  } catch (error) {
+    // Auf dem Handy gibt es keinen Tray - das ist kein Grund fuer einen Fehler.
+    console.warn('VP26 konnte die Tray-Einstellung nicht setzen.', error)
+  }
 }
 
 export async function initializeNativeShell(options: NativeShellOptions) {

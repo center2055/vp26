@@ -1,0 +1,19 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "build": {
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": true,
+        "title": "VP26"
+      }
+    ]
+  },
+  "bundle": {
+    "externalBin": [],
+    "targets": "all"
+  }
+}
