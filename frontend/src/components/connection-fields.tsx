@@ -1,16 +1,16 @@
-import type { FormState, FormUpdater } from '../ui'
+import { CONFIGURED_WEB_API_BASE_URL, type FormState, type FormUpdater } from '../ui'
 
 type ConnectionFieldsProps = {
   form: FormState
   dense?: boolean
-  showApiBaseField?: boolean
+  defaultOpen?: boolean
   onFormChange: FormUpdater
 }
 
 export function ConnectionFields({
   form,
   dense = false,
-  showApiBaseField = true,
+  defaultOpen = true,
   onFormChange,
 }: ConnectionFieldsProps) {
   const hasCustomConnection =
@@ -56,21 +56,24 @@ export function ConnectionFields({
 
       {/* Server, Port und Datum braucht fast niemand. Eingeklappt passt auf dem
           Handy die eigentliche Anmeldung samt Button auf einen Bildschirm. */}
-      <details className="connection-advanced" open={showApiBaseField || hasCustomConnection}>
+      <details className="connection-advanced" open={defaultOpen || hasCustomConnection}>
         <summary>Verbindung anpassen</summary>
 
         <div className="connection-advanced__body">
-          <div className={showApiBaseField ? 'field-grid' : 'field-grid field-grid--single'}>
-            {showApiBaseField ? (
-              <label className="field-block">
-                <span className="field-label">API-Basis</span>
-                <input
-                  value={form.api_base_url}
-                  onChange={(event) => onFormChange('api_base_url', event.target.value)}
-                  placeholder="/api"
-                />
-              </label>
-            ) : null}
+          <div className="field-grid">
+            {/* Immer erreichbar: ist das vorkonfigurierte Backend down, muss man
+                auf ein anderes ausweichen koennen. */}
+            <label className="field-block">
+              <span className="field-label">API-Basis</span>
+              <input
+                value={form.api_base_url}
+                onChange={(event) => onFormChange('api_base_url', event.target.value)}
+                placeholder={CONFIGURED_WEB_API_BASE_URL || '/api'}
+              />
+              {CONFIGURED_WEB_API_BASE_URL ? (
+                <small className="field-note">Vorgabe dieser Website: {CONFIGURED_WEB_API_BASE_URL}</small>
+              ) : null}
+            </label>
             <label className="field-block">
               <span className="field-label">Datum</span>
               <input

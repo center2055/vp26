@@ -58,7 +58,7 @@ export function AuthScreen({
 
         <form className="auth-form auth-form--minimal" onSubmit={handleSubmit}>
           {showConnectionFields ? (
-            <ConnectionFields form={form} onFormChange={onFormChange} showApiBaseField={!hasConfiguredWebApiBase} />
+            <ConnectionFields form={form} onFormChange={onFormChange} defaultOpen={!hasConfiguredWebApiBase || Boolean(error)} />
           ) : (
             <>
               <div className="field-grid">

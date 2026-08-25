@@ -117,6 +117,44 @@ function repairPayload<T>(value: T): T {
   return value
 }
 
+const NETWORK_ERROR_HINTS = [
+  'failed to fetch',
+  'networkerror',
+  'load failed',
+  'error sending request',
+  'connection refused',
+  'connection closed',
+  'dns error',
+  'tcp connect error',
+]
+
+function isNetworkError(error: unknown) {
+  // Chrome wirft TypeError "Failed to fetch", Firefox "NetworkError...", Safari
+  // "Load failed", der Tauri-HTTP-Plugin reicht reqwest-Meldungen durch.
+  if (error instanceof TypeError) {
+    return true
+  }
+
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  const message = error.message.toLowerCase()
+  return NETWORK_ERROR_HINTS.some((hint) => message.includes(hint))
+}
+
+function describeUnreachableBackend(input: string) {
+  if (input.startsWith('/')) {
+    return 'Das Backend ist unter der eingestellten API-Basis nicht erreichbar. Läuft der Dienst und stimmt die Adresse?'
+  }
+
+  try {
+    return `Das Backend unter ${new URL(input).origin} antwortet nicht. Läuft der Dienst und stimmt die API-Basis?`
+  } catch {
+    return 'Das Backend ist unter der eingestellten API-Basis nicht erreichbar. Läuft der Dienst und stimmt die Adresse?'
+  }
+}
+
 async function fetchWithTimeout(input: string, init?: RequestInit, options: FetchOptions = {}) {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), options.timeoutMs ?? API_TIMEOUT_MS)
@@ -145,6 +183,10 @@ async function fetchWithTimeout(input: string, init?: RequestInit, options: Fetc
       }
 
       throw new Error('Zeitüberschreitung beim Laden des Plans.')
+    }
+
+    if (isNetworkError(error)) {
+      throw new Error(describeUnreachableBackend(input))
     }
 
     throw error
