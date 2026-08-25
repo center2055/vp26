@@ -38,7 +38,7 @@ import {
 type WorkspaceScreenProps = {
   plan: PlanResponse
   cachedPlans: PlanResponse[]
-  isNativeShell: boolean
+  isDesktopShell: boolean
   form: FormState
   settings: AppSettings
   section: WorkspaceSection
@@ -208,6 +208,16 @@ function lessonStatusClass(lesson: { is_changed: boolean; is_cancelled: boolean 
 
 function joinOrFallback(values: string[], fallback: string) {
   return values.length ? values.join(', ') : fallback
+}
+
+// Bei einem Entfall sind Lehrer und Raum leer. "Kein Lehrer · Kein Raum" sagt
+// dann nichts, kostet aber auf dem Handy zwei Zeilen - lieber nichts zeigen.
+function describeLessonMeta(block: { teachers: string[]; rooms: string[] }) {
+  return [block.teachers.join(', '), block.rooms.join(', ')].filter(Boolean).join(' · ')
+}
+
+function pluralDays(count: number) {
+  return count === 1 ? '1 Tag' : `${count} Tage`
 }
 
 function uniqueValues(values: string[]) {
@@ -1125,11 +1135,9 @@ function ScheduleTable({ slots }: { slots: ScheduleSlot[] }) {
                   <div key={`${block.id}-${blockIndex}`} className="schedule-slot-item">
                     <div className="schedule-slot-item__head">
                       <strong>{block.subject ?? 'Entfall'}</strong>
-                      <span>
-                        {joinOrFallback(block.teachers, 'Kein Lehrer')} · {joinOrFallback(block.rooms, 'Kein Raum')}
-                      </span>
+                      {describeLessonMeta(block) ? <span>{describeLessonMeta(block)}</span> : null}
                     </div>
-                    <p>{block.info ?? 'Ohne Zusatzhinweis'}</p>
+                    {block.info ? <p>{block.info}</p> : null}
                   </div>
                 ))}
               </div>
@@ -1287,9 +1295,9 @@ function WeekTable({ days, compact = false }: { days: WeeklyDay[]; compact?: boo
                     {slot.blocks.map((block, blockIndex) => (
                       <div key={`${block.id}-${blockIndex}`} className="week-cell__item">
                         <strong>{block.subject ?? 'Entfall'}</strong>
-                        <span>{joinOrFallback(block.teachers, 'Kein Lehrer')}</span>
-                        <span>{joinOrFallback(block.rooms, 'Kein Raum')}</span>
-                        <p>{block.info ?? 'Ohne Zusatzhinweis'}</p>
+                        {block.teachers.length ? <span>{block.teachers.join(', ')}</span> : null}
+                        {block.rooms.length ? <span>{block.rooms.join(', ')}</span> : null}
+                        {block.info ? <p>{block.info}</p> : null}
                       </div>
                     ))}
                   </div>
@@ -1327,9 +1335,9 @@ function WeekChooser({
           <label className="field-block week-chooser__sort">
             <span className="field-label">Sortierung</span>
             <select value={weekSort} onChange={(event) => onWeekSortChange(event.target.value as 'name' | 'blocks' | 'changes')}>
-              <option value="name">Klasse oder Kurs</option>
-              <option value="blocks">Blöcke zuerst</option>
-              <option value="changes">Änderungen zuerst</option>
+              <option value="name">Name</option>
+              <option value="blocks">Blöcke</option>
+              <option value="changes">Änderungen</option>
             </select>
           </label>
           <span className="sidebar-count">{entities.length}</span>
@@ -1346,7 +1354,7 @@ function WeekChooser({
             >
               <div className="directory-card__header">
                 <strong>{entity.label}</strong>
-                <span>{entity.dayCount} Tage</span>
+                <span>{pluralDays(entity.dayCount)}</span>
               </div>
               <div className="week-chooser-card__stats">
                 <span>{entity.slotCount} Blöcke</span>
@@ -1400,9 +1408,9 @@ function TeacherChooser({
         <label className="field-block">
           <span className="field-label">Sortierung</span>
           <select value={teacherSort} onChange={(event) => onTeacherSortChange(event.target.value as 'status' | 'name' | 'changes')}>
-            <option value="status">Status zuerst</option>
-            <option value="name">Lehrerkürzel</option>
-            <option value="changes">Änderungen zuerst</option>
+            <option value="status">Status</option>
+            <option value="name">Kürzel</option>
+            <option value="changes">Änderungen</option>
           </select>
         </label>
       </div>
@@ -1528,9 +1536,9 @@ function RoomChooser({
         <label className="field-block">
           <span className="field-label">Sortierung</span>
           <select value={roomSort} onChange={(event) => onRoomSortChange(event.target.value as 'status' | 'name' | 'changes')}>
-            <option value="status">Gerade belegt zuerst</option>
-            <option value="name">Raumname</option>
-            <option value="changes">Änderungen zuerst</option>
+            <option value="status">Belegt zuerst</option>
+            <option value="name">Name</option>
+            <option value="changes">Änderungen</option>
           </select>
         </label>
       </div>
@@ -1662,9 +1670,9 @@ function RoomDetail({
                       <div key={`${block.id}-${blockIndex}`} className="room-timeline__item">
                         <strong>{joinOrFallback(block.classes, 'Keine Klasse')}</strong>
                         <span>
-                          {(block.subject ?? 'Entfall')} · {joinOrFallback(block.teachers, 'Kein Lehrer')}
+                          {[block.subject ?? 'Entfall', block.teachers.join(', ')].filter(Boolean).join(' · ')}
                         </span>
-                        <p>{block.info ?? 'Ohne Zusatzhinweis'}</p>
+                        {block.info ? <p>{block.info}</p> : null}
                       </div>
                     ))}
                   </div>
@@ -1712,7 +1720,7 @@ function TeacherTable({ teacher }: { teacher?: TeacherBoard }) {
               <div className="teacher-card__headline">
                 <div className="teacher-card__subject">
                   <strong>{block.subject ?? 'Entfall'}</strong>
-                  <p>{block.info ?? 'Ohne Zusatzhinweis'}</p>
+                  {block.info ? <p>{block.info}</p> : null}
                 </div>
                 <span className={lessonStatusClass(block)}>{lessonStatusLabel(block)}</span>
               </div>
@@ -1739,7 +1747,7 @@ function TeacherTable({ teacher }: { teacher?: TeacherBoard }) {
 export function WorkspaceScreen({
   plan,
   cachedPlans,
-  isNativeShell,
+  isDesktopShell,
   form,
   settings,
   section,
@@ -2206,7 +2214,7 @@ export function WorkspaceScreen({
                     {selectedWeekStats ? (
                       <div className="week-detail-toolbar week-detail-toolbar--compact">
                         <div className="week-detail-toolbar__stats week-detail-toolbar__stats--start">
-                          <span className="token">{selectedWeekStats.dayCount} Tage</span>
+                          <span className="token">{pluralDays(selectedWeekStats.dayCount)}</span>
                           <span className="token">{selectedWeekStats.slotCount} Blöcke</span>
                           <span className="token">{selectedWeekStats.changedCount} Änderungen</span>
                           <span className="token">{selectedWeekStats.cancelledCount} Entfälle</span>
@@ -2447,7 +2455,7 @@ export function WorkspaceScreen({
               <section className="content-panel content-panel--settings">
                 <SectionHeading
                   title="App-Einstellungen"
-                  subtitle={isNativeShell ? 'Verbindung, Darstellung und Verhalten' : 'Verbindung, Darstellung und Benachrichtigungen'}
+                  subtitle={isDesktopShell ? 'Verbindung, Darstellung und Verhalten' : 'Verbindung, Darstellung und Benachrichtigungen'}
                 />
                 <div className="settings-page-grid">
                   <form
@@ -2496,7 +2504,7 @@ export function WorkspaceScreen({
                   <section className="sub-panel settings-surface settings-surface--refresh">
                     <div className="settings-block__header">
                       <p className="section-eyebrow">Hintergrund</p>
-                      <h3>{isNativeShell ? 'Refresh und Tray' : 'Automatisierung'}</h3>
+                      <h3>{isDesktopShell ? 'Refresh und Tray' : 'Automatisierung'}</h3>
                     </div>
 
                     <div className="field-block">
@@ -2508,13 +2516,13 @@ export function WorkspaceScreen({
                         placeholder="15"
                       />
                       <small className="field-note">
-                        {isNativeShell
+                        {isDesktopShell
                           ? 'Läuft auch weiter, wenn die App nur im Systemtray verborgen ist.'
-                          : 'Aktualisiert den Plan automatisch, solange dieser Browser-Tab geöffnet bleibt.'}
+                          : 'Aktualisiert den Plan automatisch, solange VP26 geöffnet bleibt.'}
                       </small>
                     </div>
 
-                    {isNativeShell ? (
+                    {isDesktopShell ? (
                       <>
                         <label className="toggle-row">
                           <div>
@@ -2559,8 +2567,8 @@ export function WorkspaceScreen({
 
                     <label className="toggle-row">
                       <div>
-                        <strong>Desktop-Benachrichtigungen</strong>
-                        <span>Nur auslösen, wenn sich dein Zielplan wirklich geändert hat.</span>
+                        <strong>Benachrichtigungen</strong>
+                        <span>Melden sich nur, wenn sich dein Zielplan wirklich geändert hat.</span>
                       </div>
                       <input
                         type="checkbox"

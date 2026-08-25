@@ -3299,9 +3299,52 @@
     grid-column: 3;
     grid-row: 1;
     min-width: 0;
-    min-height: 1.7rem;
-    padding: 0.3rem 0.55rem;
-    font-size: 0.74rem;
+    min-height: 1.55rem;
+    padding: 0.26rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  /* Auf 360px bleiben der Detailspalte keine 200px. Mit Fliesstext in voller
+     Groesse bricht dort jede Zeile um und eine Stunde fuellt den Bildschirm. */
+  .schedule-slot-item__head strong {
+    font-size: 0.95rem;
+    line-height: 1.25;
+  }
+
+  .schedule-slot-item__head span,
+  .schedule-slot-item p {
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .schedule-slot-item + .schedule-slot-item {
+    padding-top: 0.45rem;
+  }
+
+  .schedule-slot-list {
+    gap: 0.45rem;
+  }
+
+  .week-detail-toolbar__stats .token {
+    min-height: 1.45rem;
+    padding: 0 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  /* Der Chip trug "Mi. 26.08." nicht - der Text lief unter dem Rand aus. */
+  .date-strip__day {
+    min-width: 6.1rem;
+    font-size: 0.88rem;
+  }
+
+  .date-strip__day-note {
+    font-size: 0.62rem;
+  }
+
+  .week-chooser__sort select,
+  .room-plan__toolbar select {
+    font-size: 0.86rem;
+    padding-inline: 0.5rem;
   }
 
   .teacher-card--compact {
@@ -3396,7 +3439,8 @@
   }
 
   .date-strip__day {
-    min-width: 5.2rem;
+    min-width: 5.9rem;
+    font-size: 0.85rem;
   }
 
   .week-chooser__grid {

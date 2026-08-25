@@ -3,6 +3,7 @@ import { ApiError, createSession, deleteSession, fetchBootstrap, fetchPlan, setN
 import {
   applyNativeTheme,
   clearNativeSessionToken,
+  getNativePlatform,
   initializeNativeShell,
   isNativeShell,
   loadNativeAutostartState,
@@ -13,6 +14,7 @@ import {
   syncNativeAutostart,
   syncNativeCloseToTray,
 } from './native'
+import { toErrorMessage } from './error-message'
 import { AuthScreen } from './components/auth-screen'
 import { WorkspaceScreen } from './components/workspace-screen'
 import type { FetchPlanRequest, PlanResponse, SessionInfo } from './types'
@@ -160,6 +162,9 @@ function App() {
   const nativeShell = isNativeShell()
   const [systemTheme, setSystemTheme] = useState<Theme>(() => resolveTheme('system'))
   const [session, setSession] = useState<SessionInfo | null>(null)
+  // Tray und Autostart gibt es nur auf dem Desktop. Die Android-App ist ebenfalls
+  // eine native Shell, dort waeren diese Schalter aber wirkungslos.
+  const [isDesktopShell, setIsDesktopShell] = useState(false)
   const [screen, setScreen] = useState<AppScreen>(initialCachedPlan ? 'workspace' : 'auth')
   const [form, setForm] = useState<FormState>(() => startupState.form)
   const [settings, setSettings] = useState<AppSettings>(() => createInitialAppSettings())
@@ -225,6 +230,12 @@ function App() {
     return () => {
       mediaQuery.removeListener(handleChange)
     }
+  }, [])
+
+  useEffect(() => {
+    void getNativePlatform().then((platform) => {
+      setIsDesktopShell(platform === 'windows' || platform === 'linux' || platform === 'macos')
+    })
   }, [])
 
   useEffect(() => {
@@ -459,7 +470,7 @@ function App() {
         return
       }
 
-      const message = caught instanceof Error ? caught.message : 'Verbindung konnte nicht aufgebaut werden.'
+      const message = toErrorMessage(caught, 'Verbindung konnte nicht aufgebaut werden.')
 
       // Abgelaufene oder ungueltige Anmeldung: zurueck zum Login, sonst laeuft der
       // Nutzer in eine Fehlermeldung, gegen die er nichts tun kann.
@@ -558,7 +569,7 @@ function App() {
           setNotice(null)
         }
       } catch (caught) {
-        const message = caught instanceof Error ? caught.message : 'Bootstrap konnte nicht geladen werden.'
+        const message = toErrorMessage(caught, 'Das Backend konnte nicht erreicht werden.')
 
         // Der Bootstrap läuft asynchron weiter, während bereits geklickt werden kann.
         // Ohne diese Prüfung warf sein Fehlerpfad den gerade geöffneten Tag wieder
@@ -660,7 +671,7 @@ function App() {
       await loadPlan(nextForm)
     } catch (caught) {
       setIsLoading(false)
-      setError(caught instanceof Error ? caught.message : 'Anmeldung fehlgeschlagen.')
+      setError(toErrorMessage(caught, 'Anmeldung fehlgeschlagen.'))
     }
   }
 
@@ -774,7 +785,7 @@ function App() {
             <WorkspaceScreen
               plan={plan}
               cachedPlans={cachedPlans}
-              isNativeShell={nativeShell}
+              isDesktopShell={isDesktopShell}
               form={form}
               settings={settings}
               section={section}

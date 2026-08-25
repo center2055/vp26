@@ -1,5 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { fetch as nativeFetch } from '@tauri-apps/plugin-http'
+import { toErrorMessage } from './error-message'
 import type { BootstrapResponse, FetchPlanRequest, PlanResponse, SessionRequest, SessionResponse } from './types'
 
 const SESSION_HEADER = 'X-VP26-Session'
@@ -172,12 +173,11 @@ function isNetworkError(error: unknown) {
     return true
   }
 
-  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
-  if (!message) {
+  const normalized = toErrorMessage(error, '').toLowerCase()
+  if (!normalized) {
     return false
   }
 
-  const normalized = message.toLowerCase()
   return NETWORK_ERROR_HINTS.some((hint) => normalized.includes(hint))
 }
 
@@ -229,9 +229,11 @@ async function fetchWithTimeout(input: string, init?: RequestInit, options: Fetc
       throw new Error(describeUnreachableBackend(input))
     }
 
-    // Auch sonst nie einen String weiterreichen: der landet oben im
-    // "instanceof Error"-Zweig und verpufft zu einer nichtssagenden Meldung.
-    throw error instanceof Error ? error : new Error(typeof error === 'string' ? error : String(error))
+    // Auch sonst nie einen rohen Wert weiterreichen: Strings verpuffen oben im
+    // "instanceof Error"-Zweig, Objekte werden zu "[object Object]".
+    throw error instanceof Error
+      ? error
+      : new Error(toErrorMessage(error, 'Der Plan konnte nicht geladen werden.'))
   } finally {
     window.clearTimeout(timeoutId)
   }
