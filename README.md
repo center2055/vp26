@@ -81,6 +81,27 @@ Die GitHub-Workflows liegen unter `.github/workflows/`:
 
 Bei Tags im Format `v*` hängt der Desktop-Workflow die gebauten Artefakte direkt an einen GitHub Release.
 
+## Backend dauerhaft hosten
+
+Der Cloudflare Quick Tunnel aus `scripts/publish-pages-backend.ps1` haengt am
+eigenen Rechner und wechselt bei jedem Start die Adresse. Fuer den Dauerbetrieb
+liegt ein Blueprint fuer Render bereit:
+
+1. Auf [render.com](https://render.com) mit dem GitHub-Konto anmelden
+2. `New` > `Blueprint` und dieses Repository waehlen
+3. Render liest `render.yaml`, legt `vp26-backend` an und deployt
+
+Die Adresse lautet danach `https://vp26-backend.onrender.com` und aendert sich
+nicht mehr. Sie gehoert als Repository-Variable `VP26_WEB_API_BASE_URL` hinterlegt,
+damit Website und Apps sie finden.
+
+Den Schluessel fuer Anmeldungen erzeugt Render selbst (`VP26_SESSION_SECRET`) und
+haelt ihn ueber Deploys stabil - ohne ihn waere nach jedem Neustart jede
+Anmeldung ungueltig, weil das Dateisystem dort fluechtig ist.
+
+Kostenlose Instanzen schlafen nach 15 Minuten ohne Anfrage ein und brauchen dann
+rund eine Minute zum Aufwachen. Dagegen laeuft `keep-backend-awake.yml`.
+
 ## GitHub Pages
 
 Die Pages-Version ist bewusst als Web-Variante abgespeckt:

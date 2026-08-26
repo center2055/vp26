@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import os
 import secrets
@@ -37,10 +39,17 @@ def _key_file() -> Path:
     return Path(__file__).resolve().parent.parent / ".vp26-session-key"
 
 
+def _derive_key(secret: str) -> bytes:
+    # Fernet verlangt exakt 32 Byte base64url. Ein von Hand gesetzter oder vom
+    # Hoster erzeugter Wert hat dieses Format nie - abgeleitet passt jeder.
+    digest = hashlib.sha256(secret.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest)
+
+
 def _load_or_create_key() -> bytes:
     configured = os.environ.get("VP26_SESSION_SECRET")
     if configured:
-        return configured.encode("utf-8")
+        return _derive_key(configured)
 
     key_file = _key_file()
 

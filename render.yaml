@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: vp26-backend
+    runtime: python
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # Ohne festen Wert erzeugt das Backend den Schluessel selbst und legt ihn
+      # als Datei ab - auf einem Host mit fluechtigem Dateisystem waere nach
+      # jedem Neustart jede Anmeldung ungueltig. generateValue bleibt stabil.
+      - key: VP26_SESSION_SECRET
+        generateValue: true
+      - key: VP26_ALLOWED_ORIGINS
+        value: https://center2055.github.io,tauri://localhost,http://tauri.localhost,https://tauri.localhost,capacitor://localhost

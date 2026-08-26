@@ -1,0 +1,31 @@
+name: Keep Backend Awake
+
+# Kostenlose Render-Instanzen schlafen nach 15 Minuten ohne Anfrage ein und
+# brauchen dann rund eine Minute zum Aufwachen. Ein regelmaessiger Ping haelt
+# sie wach, damit der erste Aufruf am Morgen nicht ins Leere laeuft.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 5-21 * * *'
+
+jobs:
+  ping:
+    name: Ping health endpoint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call health endpoint
+        env:
+          API_BASE: ${{ vars.VP26_WEB_API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE" ]; then
+            echo "::warning::VP26_WEB_API_BASE_URL ist nicht gesetzt - nichts zu pingen."
+            exit 0
+          fi
+
+          status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$API_BASE/api/health" || echo 000)"
+          echo "$API_BASE/api/health -> $status"
+
+          if [ "$status" != "200" ]; then
+            echo "::warning::Backend antwortete mit $status"
+          fi
