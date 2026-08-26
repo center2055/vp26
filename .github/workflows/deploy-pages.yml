@@ -49,6 +49,16 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VP26_WEB_API_BASE_URL }}
         run: npm run build
 
+      # Feste Anlaufstelle fuer die aktuelle Backend-Adresse: ein Quick Tunnel
+      # bekommt bei jedem Start eine neue URL, installierte Apps tragen aber die
+      # vom Bautag. Ueber diese Datei finden sie die aktuelle wieder.
+      - name: Write backend discovery file
+        env:
+          API_BASE: ${{ vars.VP26_WEB_API_BASE_URL }}
+        run: |
+          node -e "require('fs').writeFileSync('frontend/dist/backend.json', JSON.stringify({ api_base_url: process.env.API_BASE || '' }))"
+          cat frontend/dist/backend.json
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

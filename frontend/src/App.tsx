@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { ApiError, createSession, deleteSession, fetchBootstrap, fetchPlan, setNativeSessionToken } from './api'
+import {
+  ApiError,
+  createSession,
+  deleteSession,
+  discoverApiBase,
+  fetchBootstrap,
+  fetchPlan,
+  setNativeSessionToken,
+} from './api'
 import {
   applyNativeTheme,
   clearNativeSessionToken,
@@ -43,6 +51,7 @@ import './App.css'
 
 type AppScreen = 'auth' | 'workspace'
 type ConnectOptions = {
+  rediscovered?: boolean
   preserveView?: boolean
   bootstrap?: boolean
   background?: boolean
@@ -105,6 +114,10 @@ function mergeSessionIntoForm(form: FormState, session: SessionInfo): FormState 
     port: session.port ? String(session.port) : form.port,
     scope: 'classes',
   }
+}
+
+function isUnreachableBackendError(error: unknown) {
+  return error instanceof Error && /antwortet nicht|nicht erreichbar/i.test(error.message)
 }
 
 function isAbortError(error: unknown) {
@@ -405,6 +418,22 @@ function App() {
     }
   }
 
+  // Ist das eingetragene Backend nicht erreichbar, kann eine neue Tunnel-Adresse
+  // dahinterstecken. Die steht auf der Projektseite - einmal nachsehen lohnt sich.
+  async function adoptPublishedApiBase(currentForm: FormState) {
+    const discovered = await discoverApiBase()
+    const current = currentForm.api_base_url.trim().replace(/\/$/, '')
+
+    if (!discovered || discovered.replace(/\/$/, '') === current) {
+      return null
+    }
+
+    const nextForm = { ...currentForm, api_base_url: discovered }
+    setForm((existing) => ({ ...existing, api_base_url: discovered }))
+
+    return nextForm
+  }
+
   async function loadPlan(nextForm: FormState, options: ConnectOptions = {}) {
     const isBackground = Boolean(options.background)
     const exactCached = readCachedPlanForForm(nextForm, true)
@@ -483,6 +512,17 @@ function App() {
         return
       }
 
+      // Zweiter Anlauf mit der aktuell veroeffentlichten Adresse, bevor die
+      // Offline-Kopie herhalten muss.
+      if (!options.rediscovered && isUnreachableBackendError(caught)) {
+        const rediscoveredForm = await adoptPublishedApiBase(nextForm)
+
+        if (rediscoveredForm) {
+          await loadPlan(rediscoveredForm, { ...options, rediscovered: true })
+          return
+        }
+      }
+
       const latestIdentityCache = readCachedPlanForForm(nextForm, false)
       const latestCache = readLatestCachedPlan()
       const fallbackCache = isBackground ? exactCached : exactCached ?? latestIdentityCache ?? latestCache
@@ -536,14 +576,32 @@ function App() {
         !nativeShell && !HAS_CONFIGURED_WEB_API_BASE && startupState.form.api_base_url === FALLBACK_API_BASE_URL
 
       try {
-        const initialForm = startupState.form
-        const apiBase = await resolveApiBase(initialForm.api_base_url)
+        let initialForm = startupState.form
+        let apiBase = await resolveApiBase(initialForm.api_base_url)
 
         // In der Desktop-App liegt der Anmeldetoken als Datei im App-Ordner und
         // muss vor dem ersten Aufruf geladen sein, damit er mitgeschickt wird.
         setNativeSessionToken(await loadNativeSessionToken())
 
-        const bootstrapData = await fetchBootstrap(apiBase)
+        let bootstrapData
+
+        try {
+          bootstrapData = await fetchBootstrap(apiBase)
+        } catch (bootstrapError) {
+          // Beim Start zaehlt dasselbe wie beim Nachladen: zeigt die gespeicherte
+          // Adresse ins Leere, steht die aktuelle auf der Projektseite.
+          const rediscoveredForm = isUnreachableBackendError(bootstrapError)
+            ? await adoptPublishedApiBase(initialForm)
+            : null
+
+          if (!rediscoveredForm) {
+            throw bootstrapError
+          }
+
+          initialForm = rediscoveredForm
+          apiBase = await resolveApiBase(initialForm.api_base_url)
+          bootstrapData = await fetchBootstrap(apiBase)
+        }
         const activeSession = bootstrapData.authenticated ? bootstrapData.session : null
         const nextForm = activeSession
           ? mergeSessionIntoForm(initialForm, activeSession)

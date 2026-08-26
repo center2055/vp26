@@ -5,6 +5,11 @@ import type { BootstrapResponse, FetchPlanRequest, PlanResponse, SessionRequest,
 
 const SESSION_HEADER = 'X-VP26-Session'
 
+// Der Tunnel wechselt bei jedem Neustart die Adresse. Installierte Apps tragen
+// die vom Bautag - ueber diese feste Datei finden sie die aktuelle wieder.
+const BACKEND_DISCOVERY_URL =
+  import.meta.env.VITE_BACKEND_DISCOVERY_URL?.trim() || 'https://center2055.github.io/vp26/backend.json'
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -314,5 +319,40 @@ export async function deleteSession(apiBaseUrl: string, options: FetchOptions = 
     await fetchWithTimeout(`${base}/session`, { method: 'DELETE' }, options)
   } catch {
     // Auch ohne erreichbares Backend muss das Abmelden lokal durchgehen.
+  }
+}
+
+export async function discoverApiBase(): Promise<string | null> {
+  if (!BACKEND_DISCOVERY_URL) {
+    return null
+  }
+
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 8_000)
+
+  try {
+    // Bewusst ohne Anmeldedaten und damit nicht ueber fetchWithTimeout: GitHub
+    // Pages antwortet mit "Access-Control-Allow-Origin: *", und diese Wildcard
+    // lehnt der Browser zusammen mit Credentials grundsaetzlich ab.
+    const response = isTauri()
+      ? await nativeFetch(BACKEND_DISCOVERY_URL, { signal: controller.signal, connectTimeout: 8_000 })
+      : await fetch(BACKEND_DISCOVERY_URL, {
+          signal: controller.signal,
+          credentials: 'omit',
+          cache: 'no-store',
+        })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const data = (await response.json()) as { api_base_url?: unknown }
+    const discovered = typeof data.api_base_url === 'string' ? data.api_base_url.trim() : ''
+
+    return discovered || null
+  } catch {
+    return null
+  } finally {
+    window.clearTimeout(timeoutId)
   }
 }
