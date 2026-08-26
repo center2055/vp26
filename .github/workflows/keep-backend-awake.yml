@@ -3,10 +3,17 @@ name: Keep Backend Awake
 # Kostenlose Render-Instanzen schlafen nach 15 Minuten ohne Anfrage ein und
 # brauchen dann rund eine Minute zum Aufwachen. Ein regelmaessiger Ping haelt
 # sie wach, damit der erste Aufruf am Morgen nicht ins Leere laeuft.
+#
+# Nicht rund um die Uhr: der kostenlose Plan deckt 750 Instanzstunden im Monat,
+# ein voller Monat hat rund 730 - dauerhaft wach waere das Kontingent auf Kante
+# genaeht. Dieses Fenster kostet gut 570 Stunden.
+#
+# Cron laeuft in UTC. 4-22 UTC sind in deutscher Sommerzeit 06:00 bis 00:59,
+# deckt also den Blick vor der Schule genauso ab wie den am Abend davor.
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/10 5-21 * * *'
+    - cron: '*/10 4-22 * * *'
 
 jobs:
   ping:
