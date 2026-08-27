@@ -378,7 +378,7 @@ function App() {
   }
 
   async function prefetchVisibleDates(baseForm: FormState, freeDays: string[]) {
-    if (!baseForm.school_id || !baseForm.username || !baseForm.password) {
+    if (!baseForm.school_id || !baseForm.username) {
       return
     }
 
