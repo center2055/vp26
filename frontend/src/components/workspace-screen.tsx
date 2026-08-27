@@ -1,4 +1,4 @@
-﻿import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { Fragment } from 'react'
 
@@ -672,6 +672,24 @@ function buildTeacherBoards(currentPlan: PlanResponse, cachedPlans: PlanResponse
       }
     })
     .sort((left, right) => left.label.localeCompare(right.label, 'de-DE'))
+}
+
+function teacherActivityMeta(teacher: TeacherBoard) {
+  const impactCount = teacher.changedCount + teacher.cancelledCount
+
+  if (teacher.isSick) {
+    return teacher.blockCount > 0 ? (impactCount ? `${impactCount} Änderungen (Krank)` : 'Krank') : 'Abwesend'
+  }
+
+  if (teacher.blockCount === 0) {
+    return 'Kein Unterricht heute'
+  }
+
+  if (impactCount > 0) {
+    return `${impactCount} ${impactCount === 1 ? 'Änderung' : 'Änderungen'}`
+  }
+
+  return 'Planmäßig'
 }
 
 function teacherMatchesQuery(board: TeacherBoard, normalizedSearch: string) {
@@ -1489,7 +1507,7 @@ function TeacherChooser({
                 <div className="room-card__meta">
                   <span>{joinOrFallback(teacherRooms.slice(0, 3), 'Keine Räume')}</span>
                   <span>{joinOrFallback(teacherSubjects.slice(0, 3), 'Keine Fächer')}</span>
-                  <span>{impactCount ? `${impactCount} Änderungen` : 'Planmäßig'}</span>
+                  <span>{teacherActivityMeta(teacher)}</span>
                 </div>
               </button>
             )
