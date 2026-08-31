@@ -107,6 +107,11 @@ def _resolved_credentials(payload: FetchPlanRequest, session: SessionCredentials
     }
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {"status": "ok", "message": "VP26 API is running", "health": "/api/health"}
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
