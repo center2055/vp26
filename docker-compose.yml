@@ -1,0 +1,10 @@
+﻿services:
+  vp26-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    environment:
+      - VP26_ALLOWED_ORIGINS=https://center2055.github.io,http://localhost:5173,http://127.0.0.1:5173
+    restart: unless-stopped
