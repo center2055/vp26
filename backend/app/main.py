@@ -47,6 +47,11 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+def startup_event():
+    print("VP26 Backend started successfully and is ready to accept requests on port 8000.", flush=True)
+
+
 SCOPE_TO_PATH = {
     "classes": Stundenplan24Pfade.PlanKl,
     "teachers": Stundenplan24Pfade.PlanLe,
