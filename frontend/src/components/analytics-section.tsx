@@ -1,19 +1,15 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
-  BarChart3,
   Calendar,
   ChevronRight,
-  Clock,
-  GraduationCap,
   RefreshCw,
-  Search,
-  TrendingDown,
   UserX,
   X,
 } from 'lucide-react'
 import { fetchTeacherAnalytics, fetchTeacherHistory } from '../api'
+import { toErrorMessage } from '../error-message'
 import type {
   TeacherAnalyticsEntry,
   TeacherAnalyticsResponse,
@@ -45,8 +41,8 @@ export function AnalyticsSection({ apiBaseUrl }: AnalyticsSectionProps) {
     try {
       const response = await fetchTeacherAnalytics(apiBaseUrl, { days })
       setData(response)
-    } catch (err: any) {
-      setError(err?.message || 'Statistiken konnten nicht geladen werden.')
+    } catch (err: unknown) {
+      setError(toErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
