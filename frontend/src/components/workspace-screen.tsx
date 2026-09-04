@@ -3,6 +3,7 @@ import type { ReactNode, RefObject } from 'react'
 import { Fragment } from 'react'
 
 import {
+  BarChart3,
   BellDot,
   BookOpenText,
   CalendarDays,
@@ -17,6 +18,7 @@ import {
   RefreshCw,
   Settings2,
 } from 'lucide-react'
+import { AnalyticsSection } from './analytics-section'
 import { ConnectionFields } from './connection-fields'
 import type { EntityPlan, LessonItem, PlanResponse } from '../types'
 import {
@@ -183,6 +185,7 @@ const sectionIcons = {
   week: CalendarDays,
   rooms: MapPinned,
   teachers: GraduationCap,
+  analytics: BarChart3,
   settings: Settings2,
 } as const
 
@@ -1917,8 +1920,8 @@ export function WorkspaceScreen({
   const emptyPlanCopy =
     plan.meta.additional_info ??
     'Für diesen Tag wurde kein Datensatz gefunden. Das ist häufig ein freier Tag, Ferien oder ein noch nicht veröffentlichter Stand.'
-  const showDateStrip = section !== 'settings'
-  const showEmptyPlan = isEmptyPlan && section !== 'settings' && section !== 'week'
+  const showDateStrip = section !== 'settings' && section !== 'analytics'
+  const showEmptyPlan = isEmptyPlan && section !== 'settings' && section !== 'week' && section !== 'analytics'
   const teacherStatusLabel = selectedTeacher?.isSick ? 'Krank' : 'Aktiv'
   const teacherStatusCopy = selectedTeacher?.isSick
     ? 'In der Krankliste markiert. Sichtbare Bezüge können trotzdem aus älteren oder geänderten Klassenblöcken stammen.'
@@ -2466,6 +2469,12 @@ export function WorkspaceScreen({
                     </div>
                   </div>
                 )}
+              </section>
+            ) : null}
+
+            {section === 'analytics' ? (
+              <section className="content-panel content-panel--analytics">
+                <AnalyticsSection apiBaseUrl={form.api_base_url} />
               </section>
             ) : null}
 

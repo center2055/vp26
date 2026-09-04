@@ -1,7 +1,15 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { fetch as nativeFetch } from '@tauri-apps/plugin-http'
 import { toErrorMessage } from './error-message'
-import type { BootstrapResponse, FetchPlanRequest, PlanResponse, SessionRequest, SessionResponse } from './types'
+import type {
+  BootstrapResponse,
+  FetchPlanRequest,
+  PlanResponse,
+  SessionRequest,
+  SessionResponse,
+  TeacherAnalyticsResponse,
+  TeacherDayHistoryEntry,
+} from './types'
 
 const SESSION_HEADER = 'X-VP26-Session'
 
@@ -356,3 +364,50 @@ export async function discoverApiBase(): Promise<string | null> {
     window.clearTimeout(timeoutId)
   }
 }
+
+export async function fetchTeacherAnalytics(
+  apiBaseUrl: string,
+  params: { days?: number; from_date?: string; to_date?: string } = {},
+  options: FetchOptions = {},
+): Promise<TeacherAnalyticsResponse> {
+  const base = normalizeBaseUrl(apiBaseUrl)
+  const queryParams = new URLSearchParams()
+  if (params.days) queryParams.set('days', String(params.days))
+  if (params.from_date) queryParams.set('from_date', params.from_date)
+  if (params.to_date) queryParams.set('to_date', params.to_date)
+
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : ''
+  const response = await fetchWithTimeout(`${base}/analytics/teachers${queryString}`, undefined, options)
+
+  if (!response.ok) {
+    throw new ApiError(
+      await readResponseErrorMessage(response, `Statistiken konnten nicht geladen werden (${response.status}).`),
+      response.status,
+    )
+  }
+
+  return repairPayload((await response.json()) as TeacherAnalyticsResponse)
+}
+
+export async function fetchTeacherHistory(
+  apiBaseUrl: string,
+  teacherId: string,
+  options: FetchOptions = {},
+): Promise<TeacherDayHistoryEntry[]> {
+  const base = normalizeBaseUrl(apiBaseUrl)
+  const response = await fetchWithTimeout(
+    `${base}/analytics/teachers/${encodeURIComponent(teacherId)}`,
+    undefined,
+    options,
+  )
+
+  if (!response.ok) {
+    throw new ApiError(
+      await readResponseErrorMessage(response, `Lehrer-Historie konnte nicht geladen werden (${response.status}).`),
+      response.status,
+    )
+  }
+
+  return repairPayload((await response.json()) as TeacherDayHistoryEntry[])
+}
+

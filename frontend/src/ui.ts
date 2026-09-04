@@ -1,6 +1,6 @@
 import type { PlanResponse, PlanScope } from './types'
 
-export type WorkspaceSection = 'schedule' | 'week' | 'rooms' | 'teachers' | 'settings'
+export type WorkspaceSection = 'schedule' | 'week' | 'rooms' | 'teachers' | 'analytics' | 'settings'
 export type ScheduleSubsection = 'lessons' | 'week' | 'changes' | 'rooms' | 'courses' | 'extras'
 export type Theme = 'dark' | 'light'
 export type ThemeMode = 'system' | 'light' | 'dark'
@@ -82,6 +82,7 @@ export const workspaceSections: Array<{ value: WorkspaceSection; label: string; 
   { value: 'week', label: 'Unterricht', shortLabel: 'Plan' },
   { value: 'rooms', label: 'Raumplan', shortLabel: 'Räume' },
   { value: 'teachers', label: 'Lehrerfinder', shortLabel: 'Lehrer' },
+  { value: 'analytics', label: 'Auswertung', shortLabel: 'Statistik' },
   { value: 'settings', label: 'Einstellungen', shortLabel: 'Setup' },
 ]
 

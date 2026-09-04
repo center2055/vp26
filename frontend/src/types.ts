@@ -126,3 +126,48 @@ export interface BootstrapResponse {
   default_port: number | null
   default_scope: PlanScope
 }
+
+export interface TeacherAnalyticsEntry {
+  id: string
+  label: string
+  days_sick: number
+  days_recorded: number
+  days_with_blocks: number
+  total_blocks: number
+  changed_blocks: number
+  cancelled_blocks: number
+  subjects: string[]
+  classes: string[]
+  last_seen_date: string | null
+  cancellation_rate: number
+  absence_rate: number
+  is_currently_sick: boolean
+}
+
+export interface TeacherAnalyticsSummary {
+  from_date: string
+  to_date: string
+  tracked_days: number
+  total_teachers: number
+  total_sick_events: number
+  total_cancelled_blocks: number
+  total_changed_blocks: number
+  total_blocks: number
+}
+
+export interface TeacherAnalyticsResponse {
+  summary: TeacherAnalyticsSummary
+  teachers: TeacherAnalyticsEntry[]
+}
+
+export interface TeacherDayHistoryEntry {
+  date: string
+  is_sick: boolean
+  total_blocks: number
+  changed_blocks: number
+  cancelled_blocks: number
+  subjects: string[]
+  classes: string[]
+  rooms: string[]
+}
+

@@ -8,8 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from vpmobil import ResourceNotFound, Stundenplan24Pfade, Unauthorized, Vertretungsplan
 
 from app.config import get_settings
+from app.database import (
+    get_teacher_analytics,
+    get_teacher_history,
+    init_db,
+    record_plan,
+)
 from app.demo_data import get_demo_plan
-from app.schemas import FetchPlanRequest, PlanResponse, SessionRequest
+from app.schemas import (
+    FetchPlanRequest,
+    PlanResponse,
+    SessionRequest,
+    TeacherAnalyticsResponse,
+    TeacherDayHistoryEntry,
+)
 from app.serializers import serialize_empty_plan, serialize_plan
 from app.session import (
     SESSION_COOKIE_NAME,
@@ -49,6 +61,7 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
+    init_db()
     print("VP26 Backend started successfully and is ready to accept requests on port 8000.", flush=True)
 
 
@@ -271,4 +284,43 @@ def fetch_plan(payload: FetchPlanRequest, request: Request) -> PlanResponse:
             detail=f"Kein Eintrag '{payload.entity_id}' im angefragten Plan gefunden.",
         )
 
+    # Persist daily records into SQLite database for historical analytics
+    try:
+        record_plan(response, school_id=credentials["school_id"])
+    except Exception as exc:
+        print(f"Warning: Failed to record plan into database: {exc}", flush=True)
+
     return response
+
+
+@app.get("/api/analytics/teachers", response_model=TeacherAnalyticsResponse)
+def read_teacher_analytics(
+    request: Request,
+    days: int = 30,
+    from_date: str | None = None,
+    to_date: str | None = None,
+) -> TeacherAnalyticsResponse:
+    session = _session_from_request(request)
+    school_id = session.school_id if session else 0
+    return get_teacher_analytics(
+        school_id=school_id,
+        from_date=from_date,
+        to_date=to_date,
+        days=days,
+    )
+
+
+@app.get("/api/analytics/teachers/{teacher_id}", response_model=list[TeacherDayHistoryEntry])
+def read_teacher_history(
+    teacher_id: str,
+    request: Request,
+    limit: int = 60,
+) -> list[TeacherDayHistoryEntry]:
+    session = _session_from_request(request)
+    school_id = session.school_id if session else 0
+    return get_teacher_history(
+        teacher_id=teacher_id,
+        school_id=school_id,
+        limit=limit,
+    )
+

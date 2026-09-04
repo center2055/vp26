@@ -116,3 +116,48 @@ class PlanMeta(BaseModel):
 class PlanResponse(BaseModel):
     meta: PlanMeta
     entities: list[EntityPlan]
+
+
+class TeacherAnalyticsEntry(BaseModel):
+    id: str
+    label: str
+    days_sick: int
+    days_recorded: int
+    days_with_blocks: int
+    total_blocks: int
+    changed_blocks: int
+    cancelled_blocks: int
+    subjects: list[str] = []
+    classes: list[str] = []
+    last_seen_date: str | None = None
+    cancellation_rate: float = 0.0
+    absence_rate: float = 0.0
+    is_currently_sick: bool = False
+
+
+class TeacherAnalyticsSummary(BaseModel):
+    from_date: str
+    to_date: str
+    tracked_days: int
+    total_teachers: int
+    total_sick_events: int
+    total_cancelled_blocks: int
+    total_changed_blocks: int
+    total_blocks: int
+
+
+class TeacherAnalyticsResponse(BaseModel):
+    summary: TeacherAnalyticsSummary
+    teachers: list[TeacherAnalyticsEntry]
+
+
+class TeacherDayHistoryEntry(BaseModel):
+    date: str
+    is_sick: bool
+    total_blocks: int
+    changed_blocks: int
+    cancelled_blocks: int
+    subjects: list[str] = []
+    classes: list[str] = []
+    rooms: list[str] = []
+
